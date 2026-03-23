@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+import argparse
+import collections
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from gql import Client, GraphQLRequest, gql
+from gql.transport.aiohttp import AIOHTTPTransport
+
+
+@dataclass(slots=True)
+class DownloaderConfig:
+    out_dir: Path = Path("data")
+    datafordeler_graphql_url: str = "https://graphql.datafordeler.dk"
+    bbr_path: str = "/BBR/v1"
+    datafordeler_api_key: str | None = None
+    timeout_seconds: int = 120.0
+
+    @classmethod
+    def from_env(cls) -> "DownloaderConfig":
+        if not os.getenv("DATAFORDELER_API_KEY"):
+            raise DownloaderError("DATAFORDELER_API_KEY is not set")
+        return cls(
+            out_dir=Path(os.getenv("DATA_DIR", "data")),
+            datafordeler_api_key=os.getenv("DATAFORDELER_API_KEY"),
+            timeout_seconds=int(os.getenv("HTTP_TIMEOUT_SECONDS", "120")),
+        )
+
+
+class DownloaderError(RuntimeError):
+    pass
+
+
+#
+# KOMMUNEKODER
+#
+# Fanø: 0563
+# Læsø: 0825
+#
+
+
+def download_bbr(config: DownloaderConfig) -> None:
+    # Select your transport with a defined url endpoint
+    url_with_key = f"{config.datafordeler_graphql_url}{config.bbr_path}?apikey={config.datafordeler_api_key}"
+
+    # Paged query for BBR Bygninger
+    query = gql(
+        """
+        query GetBBRBygninger($cursor: String) {
+          BBR_Bygning(
+            virkningstid: "2026-01-01T00:00:00+01:00"
+            first: 1000
+            after: $cursor
+            where: {
+              kommunekode: {eq: "0825"}
+              status: {eq: "6"}
+            }
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                id_lokalId
+                id_namespace
+                kommunekode
+                status
+                byg026Opfoerelsesaar
+                byg027OmTilbygningsaar
+                byg021BygningensAnvendelse
+                byg070Fredning
+                byg071BevaringsvaerdighedReference
+                grund
+                byg404Koordinat { type crs dimension wkt }
+                byg406Koordinatsystem
+            }
+          }
+        }    
+        """
+    )
+
+    result = get_all_pages_with_cursor(url_with_key, query, "BBR_Bygning")
+
+    print(len(result["BBR_Bygning"]["nodes"]), collections.Counter(b["id_lokalId"] for b in result["BBR_Bygning"]["nodes"]))
+
+    for n in result["BBR_Bygning"]["nodes"][:10]:
+        print(n)
+
+
+# Page through all results for a single entity.
+# Query must have a $cursor variable for paging.
+# Returns {entity: {'nodes': [...]}}
+def get_all_pages_with_cursor(url_with_key: str, query: GraphQLRequest, entity: str):
+    entity_nodes = []
+    cursor = None
+    has_next_page = True
+
+    while has_next_page:
+        transport = AIOHTTPTransport(
+            url=url_with_key,
+            timeout=120
+        )
+
+        # Create a GraphQL client using the defined transport
+        client = Client(transport=transport)
+
+        print(f"Fetching page with cursor: {cursor}")
+        result = client.execute(query, variable_values={"cursor": cursor})
+
+        entity_page = result[entity]
+        entity_nodes.extend(entity_page["nodes"])
+
+        has_next_page = entity_page["pageInfo"]["hasNextPage"]
+        cursor = entity_page["pageInfo"]["endCursor"]
+
+    return {entity: {"nodes": entity_nodes}}
+
+
+def cli_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Collect Danish property-related public data to GeoParquet/Parquet"
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    p_gql = sub.add_parser("bbr", help="Download BBR data to Parquet/GeoParquet")
+    return parser
+
+
+def main() -> None:
+    args = cli_parser().parse_args()
+    config = DownloaderConfig.from_env()
+    if args.command == "bbr":
+        download_bbr(config)
+    else:
+        raise DownloaderError(f"Unknown command: {args.command}")
+
+
+if __name__ == "__main__":
+    main()
