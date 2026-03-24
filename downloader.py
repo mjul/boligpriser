@@ -175,6 +175,8 @@ def download_vur(config: DownloaderConfig) -> None:
                 aendringDato
                 benyttelseKode
                 antalMedvurderedeLejligheder # Antal medvurderede lejligheder i den vurderede ejendom
+                vurderingskredsKode
+                fkVurderingsejendomID
             }
           }
         }    
