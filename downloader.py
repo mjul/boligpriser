@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import collections
 import os
+import typing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,6 +16,8 @@ class DownloaderConfig:
     out_dir: Path = Path("data")
     datafordeler_graphql_url: str = "https://graphql.datafordeler.dk"
     bbr_path: str = "/BBR/v1"
+    vur_path: str = "/VUR/v2"
+    vurderingsaar: int = 2022
     datafordeler_api_key: str | None = None
     timeout_seconds: int = 120.0
 
@@ -27,6 +30,14 @@ class DownloaderConfig:
             datafordeler_api_key=os.getenv("DATAFORDELER_API_KEY"),
             timeout_seconds=int(os.getenv("HTTP_TIMEOUT_SECONDS", "120")),
         )
+
+    def bbr_url(self):
+        """Get the URL for the BBR GraphQL endpoint, including the API key."""
+        return f"{self.datafordeler_graphql_url}{self.bbr_path}?apikey={self.datafordeler_api_key}"
+
+    def vur_url(self):
+        """Get the URL for the VUR GraphQL endpoint, including the API key."""
+        return f"{self.datafordeler_graphql_url}{self.vur_path}?apikey={self.datafordeler_api_key}"
 
 
 class DownloaderError(RuntimeError):
@@ -42,8 +53,7 @@ class DownloaderError(RuntimeError):
 
 
 def download_bbr(config: DownloaderConfig) -> None:
-    # Select your transport with a defined url endpoint
-    url_with_key = f"{config.datafordeler_graphql_url}{config.bbr_path}?apikey={config.datafordeler_api_key}"
+    url_with_key = config.bbr_url()
 
     # Paged query for BBR Bygninger
     query = gql(
@@ -81,9 +91,13 @@ def download_bbr(config: DownloaderConfig) -> None:
         """
     )
 
-    result = get_all_pages_with_cursor(url_with_key, query, "BBR_Bygning")
+    max_entities = 2000 # TODO fix this
+    result = get_all_pages_with_cursor(url_with_key, query, "BBR_Bygning", {}, max_entities)
 
-    print(len(result["BBR_Bygning"]["nodes"]), collections.Counter(b["id_lokalId"] for b in result["BBR_Bygning"]["nodes"]))
+    print(
+        len(result["BBR_Bygning"]["nodes"]),
+        collections.Counter(b["id_lokalId"] for b in result["BBR_Bygning"]["nodes"]),
+    )
 
     for n in result["BBR_Bygning"]["nodes"][:10]:
         print(n)
@@ -92,30 +106,93 @@ def download_bbr(config: DownloaderConfig) -> None:
 # Page through all results for a single entity.
 # Query must have a $cursor variable for paging.
 # Returns {entity: {'nodes': [...]}}
-def get_all_pages_with_cursor(url_with_key: str, query: GraphQLRequest, entity: str):
+def get_all_pages_with_cursor(
+    url_with_key: str,
+    query: GraphQLRequest,
+    entity: str,
+    variable_values: dict[str, typing.Any],
+    max_entities: int,
+):
     entity_nodes = []
     cursor = None
     has_next_page = True
 
     while has_next_page:
-        transport = AIOHTTPTransport(
-            url=url_with_key,
-            timeout=120
-        )
+        transport = AIOHTTPTransport(url=url_with_key, timeout=120)
 
         # Create a GraphQL client using the defined transport
         client = Client(transport=transport)
 
         print(f"Fetching page with cursor: {cursor}")
-        result = client.execute(query, variable_values={"cursor": cursor})
+        vvals = variable_values.copy()
+        vvals.update({"cursor": cursor})
+
+        result = client.execute(query, variable_values=vvals)
 
         entity_page = result[entity]
         entity_nodes.extend(entity_page["nodes"])
+
+        if len(entity_nodes) > max_entities:
+            # stop if we have enough entities
+            break
 
         has_next_page = entity_page["pageInfo"]["hasNextPage"]
         cursor = entity_page["pageInfo"]["endCursor"]
 
     return {entity: {"nodes": entity_nodes}}
+
+
+def download_vur(config: DownloaderConfig) -> None:
+    url_with_key = config.vur_url()
+
+    # Paged query for BBR Bygninger
+    query = gql(
+        """
+        query GetVUR_Ejendomsvurdering($cursor: String, $vurderingsaar: Long!) {
+          VUR_Ejendomsvurdering(
+            first: 1000
+            after: $cursor
+            where: {
+              aar: {eq: $vurderingsaar}
+            }
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                id
+                datafordelerRowId
+                datafordelerRowVersion
+                ejendomvaerdiBeloeb
+                grundvaerdiBeloeb
+                juridiskKategoriKode # Kode der angiver den juridiske kategori, som ejendommen er tildelt ved denne ejendomsvurdering.
+                juridiskKategoriTekst # Tekst, der beskriver den juridiske kategori, som ejendommen er tildelt ved denne ejendomsvurdering
+                juridiskUnderkategoriKode
+                juridiskUnderkategoriTekst
+                vurderetAreal # Vurderet grundareal. Ejendommens samlede vurderede areal i m2 (incl. Vejareal).
+                ajourfoeringDato
+                aendringDato
+                benyttelseKode
+                antalMedvurderedeLejligheder # Antal medvurderede lejligheder i den vurderede ejendom
+            }
+          }
+        }    
+        """
+    )
+    max_entities = 10  # TODO
+
+    result = get_all_pages_with_cursor(
+        url_with_key,
+        query,
+        "VUR_Ejendomsvurdering",
+        {"vurderingsaar": config.vurderingsaar},
+        max_entities,
+    )
+
+    print(len(result["VUR_Ejendomsvurdering"]["nodes"]))
+    for x in result["VUR_Ejendomsvurdering"]["nodes"][:10]:
+        print(x)
 
 
 def cli_parser() -> argparse.ArgumentParser:
@@ -124,6 +201,7 @@ def cli_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     p_gql = sub.add_parser("bbr", help="Download BBR data to Parquet/GeoParquet")
+    p_gql = sub.add_parser("vur", help="Download VUR data to Parquet/GeoParquet")
     return parser
 
 
@@ -132,6 +210,8 @@ def main() -> None:
     config = DownloaderConfig.from_env()
     if args.command == "bbr":
         download_bbr(config)
+    elif args.command == "vur":
+        download_vur(config)
     else:
         raise DownloaderError(f"Unknown command: {args.command}")
 
