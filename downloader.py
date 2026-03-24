@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 import argparse
 import asyncio
 import collections
 import os
+import time
 import typing
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +13,7 @@ from pathlib import Path
 from gql import Client, GraphQLRequest, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
+logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class DownloaderConfig:
@@ -116,6 +119,8 @@ async def get_all_pages_with_cursor(
     variable_values: dict[str, typing.Any],
     max_entities: int,
 ):
+    log_adapter = logging.LoggerAdapter(logger, {"entity": entity})
+
     entity_nodes = []
     cursor = None
     has_next_page = True
@@ -123,14 +128,17 @@ async def get_all_pages_with_cursor(
     transport = AIOHTTPTransport(url=url_with_key, timeout=120)
     client = Client(transport=transport)
 
+
     async with client as session:
         while has_next_page:
-
-            print(f"Fetching page with cursor: {cursor}")
+            log_adapter.info(f"Downloading page with cursor: {cursor}")
             vvals = variable_values.copy()
             vvals.update({"cursor": cursor})
 
+            start_time = time.perf_counter()
             result = await session.execute(query, variable_values=vvals)
+            duration = time.perf_counter() - start_time
+            log_adapter.info(f"Page downloaded in {duration:.2f}s")
 
             entity_page = result[entity]
             entity_nodes.extend(entity_page["nodes"])
@@ -220,6 +228,7 @@ async def download(config, args):
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(entity)s] %(message)s")
     args = cli_parser().parse_args()
     config = DownloaderConfig.from_env()
     asyncio.run(download(config, args))
