@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import collections
 import os
 import typing
@@ -52,7 +53,7 @@ class DownloaderError(RuntimeError):
 #
 
 
-def download_bbr(config: DownloaderConfig) -> None:
+async def download_bbr(config: DownloaderConfig) -> None:
     url_with_key = config.bbr_url()
 
     # Paged query for BBR Bygninger
@@ -91,8 +92,10 @@ def download_bbr(config: DownloaderConfig) -> None:
         """
     )
 
-    max_entities = 2000 # TODO fix this
-    result = get_all_pages_with_cursor(url_with_key, query, "BBR_Bygning", {}, max_entities)
+    max_entities = 2000  # TODO fix this
+    result = await get_all_pages_with_cursor(
+        url_with_key, query, "BBR_Bygning", {}, max_entities
+    )
 
     print(
         len(result["BBR_Bygning"]["nodes"]),
@@ -106,7 +109,7 @@ def download_bbr(config: DownloaderConfig) -> None:
 # Page through all results for a single entity.
 # Query must have a $cursor variable for paging.
 # Returns {entity: {'nodes': [...]}}
-def get_all_pages_with_cursor(
+async def get_all_pages_with_cursor(
     url_with_key: str,
     query: GraphQLRequest,
     entity: str,
@@ -117,32 +120,32 @@ def get_all_pages_with_cursor(
     cursor = None
     has_next_page = True
 
-    while has_next_page:
-        transport = AIOHTTPTransport(url=url_with_key, timeout=120)
+    transport = AIOHTTPTransport(url=url_with_key, timeout=120)
+    client = Client(transport=transport)
 
-        # Create a GraphQL client using the defined transport
-        client = Client(transport=transport)
+    async with client as session:
+        while has_next_page:
 
-        print(f"Fetching page with cursor: {cursor}")
-        vvals = variable_values.copy()
-        vvals.update({"cursor": cursor})
+            print(f"Fetching page with cursor: {cursor}")
+            vvals = variable_values.copy()
+            vvals.update({"cursor": cursor})
 
-        result = client.execute(query, variable_values=vvals)
+            result = await session.execute(query, variable_values=vvals)
 
-        entity_page = result[entity]
-        entity_nodes.extend(entity_page["nodes"])
+            entity_page = result[entity]
+            entity_nodes.extend(entity_page["nodes"])
 
-        if len(entity_nodes) > max_entities:
-            # stop if we have enough entities
-            break
+            if max_entities <= len(entity_nodes):
+                # stop if we have enough entities
+                break
 
-        has_next_page = entity_page["pageInfo"]["hasNextPage"]
-        cursor = entity_page["pageInfo"]["endCursor"]
+            has_next_page = entity_page["pageInfo"]["hasNextPage"]
+            cursor = entity_page["pageInfo"]["endCursor"]
 
     return {entity: {"nodes": entity_nodes}}
 
 
-def download_vur(config: DownloaderConfig) -> None:
+async def download_vur(config: DownloaderConfig) -> None:
     url_with_key = config.vur_url()
 
     # Paged query for BBR Bygninger
@@ -182,9 +185,9 @@ def download_vur(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = 10  # TODO
+    max_entities = 10000  # TODO
 
-    result = get_all_pages_with_cursor(
+    result = await get_all_pages_with_cursor(
         url_with_key,
         query,
         "VUR_Ejendomsvurdering",
@@ -207,15 +210,19 @@ def cli_parser() -> argparse.ArgumentParser:
     return parser
 
 
+async def download(config, args):
+    if args.command == "bbr":
+        await download_bbr(config)
+    elif args.command == "vur":
+        await download_vur(config)
+    else:
+        raise DownloaderError(f"Unknown command: {args.command}")
+
+
 def main() -> None:
     args = cli_parser().parse_args()
     config = DownloaderConfig.from_env()
-    if args.command == "bbr":
-        download_bbr(config)
-    elif args.command == "vur":
-        download_vur(config)
-    else:
-        raise DownloaderError(f"Unknown command: {args.command}")
+    asyncio.run(download(config, args))
 
 
 if __name__ == "__main__":
