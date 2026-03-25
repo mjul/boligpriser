@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import collections
 import logging
 import os
 import time
@@ -11,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pyarrow as pa
+import pyarrow.parquet as pq
 from gql import Client, GraphQLRequest, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -22,7 +22,7 @@ class DownloaderConfig:
     datafordeler_graphql_url: str = "https://graphql.datafordeler.dk"
     bbr_path: str = "/BBR/v1"
     vur_path: str = "/VUR/v2"
-    vurderingsaar: int = 2022 # dette år har flest data, se https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
+    vurderingsaar: int = 2022  # dette år har flest data, se https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
     datafordeler_api_key: str | None = None
     timeout_seconds: int = 120.0
 
@@ -40,9 +40,17 @@ class DownloaderConfig:
         """Get the URL for the BBR GraphQL endpoint, including the API key."""
         return f"{self.datafordeler_graphql_url}{self.bbr_path}?apikey={self.datafordeler_api_key}"
 
+    def bbr_bygning_file(self):
+        """Get the path to the BBR Bygning Parquet file."""
+        return self.out_dir / "bbr_bygning.parquet"
+
     def vur_url(self):
         """Get the URL for the VUR GraphQL endpoint, including the API key."""
         return f"{self.datafordeler_graphql_url}{self.vur_path}?apikey={self.datafordeler_api_key}"
+
+    def vur_ejendomsvurdering_file(self):
+        """Get the path to the VUR Ejendomsvurdering Parquet file."""
+        return self.out_dir / "vur_ejendomsvurdering.parquet"
 
 
 class DownloaderError(RuntimeError):
@@ -96,30 +104,33 @@ async def download_bbr(config: DownloaderConfig) -> None:
         """
     )
 
-    max_entities = 2000  # TODO fix this
-    result = await get_all_pages_with_cursor(
-        url_with_key, query, "BBR_Bygning", {}, max_entities
-    )
-
-    print(
-        result.num_rows,
-        collections.Counter(result["id_lokalId"]),
-    )
-
-    for n in result[:10]:
-        print(n)
+    max_entities = 1_000  # TODO fix this
+    output_file = config.bbr_bygning_file()
+    entity = "BBR_Bygning"
+    _result = await download_to_parquet(url_with_key, query, entity, {}, max_entities, output_file)
 
 
-# Page through all results for a single entity.
-# Query must have a $cursor variable for paging.
-# Returns {entity: {'nodes': [...]}}
-async def get_all_pages_with_cursor(
+async def download_to_parquet(
     url_with_key: str,
     query: GraphQLRequest,
     entity: str,
     variable_values: dict[str, typing.Any],
     max_entities: int,
+    output_file: Path,
 ) -> pa.Table:
+    """
+    Page through all results for a single entity.
+    Query must have a $cursor variable for paging.
+    Saves data as Parquet file to the output_file.
+    Returns {entity: {'nodes': [...]}}
+    :param url_with_key:
+    :param query:
+    :param entity:
+    :param variable_values:
+    :param max_entities:
+    :param output_file: path to save the Parquet file
+    :return:
+    """
     log_adapter = logging.LoggerAdapter(logger, {"entity": entity})
 
     cursor = None
@@ -150,7 +161,7 @@ async def get_all_pages_with_cursor(
 
             duration = time.perf_counter() - start_time
             log_adapter.info(f"Page processed in {duration:.2f}s.")
-            log_adapter.info(f"Processed {n_read} rows i total.")
+            log_adapter.info(f"Processed {n_read} rows in total.")
 
             if max_entities <= n_read:
                 # stop if we have enough entities
@@ -160,11 +171,17 @@ async def get_all_pages_with_cursor(
             cursor = entity_page["pageInfo"]["endCursor"]
 
     table = pa.concat_tables(page_tables)
+    log_adapter.info(f"Writing {table.num_rows} rows to {output_file}...")
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(table, output_file)
+    log_adapter.info(f"Saved data to {output_file.name}")
+
     return table
 
 
 async def download_vur(config: DownloaderConfig) -> None:
     url_with_key = config.vur_url()
+    output_file = config.vur_ejendomsvurdering_file()
 
     # Paged query for BBR Bygninger
     query = gql(
@@ -204,25 +221,23 @@ async def download_vur(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = 1_000  # TODO
+    max_entities = 2_000  # TODO
 
-    result = await get_all_pages_with_cursor(
+    entity = "VUR_Ejendomsvurdering"
+    result = await download_to_parquet(
         url_with_key,
         query,
-        "VUR_Ejendomsvurdering",
+        entity,
         {"vurderingsaar": config.vurderingsaar},
         max_entities,
+        output_file,
     )
-
-    logger.debug(f"Downloaded {result.num_rows} rows.")
-    print("--------------------")
-    print( result[:10])
-
 
 
 # Bitemporalitet (VUR)
 # https://confluence.sdfi.dk/pages/viewpage.action?pageId=16056524
 # NB: *Der er ikke bitemporalitet i VUR, og VUR følger ikke modelreglerne, da det er udviklet før disse blev vedtaget.*
+
 
 def cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -241,6 +256,7 @@ async def download(config, args):
         await download_vur(config)
     else:
         raise DownloaderError(f"Unknown command: {args.command}")
+
 
 
 def main() -> None:
