@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import logging
 import argparse
 import asyncio
 import collections
+import logging
 import os
 import time
 import typing
 from dataclasses import dataclass
 from pathlib import Path
 
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 from gql import Client, GraphQLRequest, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -21,7 +24,7 @@ class DownloaderConfig:
     datafordeler_graphql_url: str = "https://graphql.datafordeler.dk"
     bbr_path: str = "/BBR/v1"
     vur_path: str = "/VUR/v2"
-    vurderingsaar: int = 2022
+    vurderingsaar: int = 2022 # dette år har flest data, se https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
     datafordeler_api_key: str | None = None
     timeout_seconds: int = 120.0
 
@@ -101,11 +104,11 @@ async def download_bbr(config: DownloaderConfig) -> None:
     )
 
     print(
-        len(result["BBR_Bygning"]["nodes"]),
-        collections.Counter(b["id_lokalId"] for b in result["BBR_Bygning"]["nodes"]),
+        result.num_rows,
+        collections.Counter(result["id_lokalId"]),
     )
 
-    for n in result["BBR_Bygning"]["nodes"][:10]:
+    for n in result[:10]:
         print(n)
 
 
@@ -118,16 +121,17 @@ async def get_all_pages_with_cursor(
     entity: str,
     variable_values: dict[str, typing.Any],
     max_entities: int,
-):
+) -> pa.Table:
     log_adapter = logging.LoggerAdapter(logger, {"entity": entity})
 
-    entity_nodes = []
     cursor = None
     has_next_page = True
 
     transport = AIOHTTPTransport(url=url_with_key, timeout=120)
     client = Client(transport=transport)
 
+    page_tables = []
+    n_read = 0
 
     async with client as session:
         while has_next_page:
@@ -141,16 +145,24 @@ async def get_all_pages_with_cursor(
             log_adapter.info(f"Page downloaded in {duration:.2f}s")
 
             entity_page = result[entity]
-            entity_nodes.extend(entity_page["nodes"])
+            page_df = pd.DataFrame(entity_page["nodes"])
+            table = pa.Table.from_pandas(df=page_df)
+            page_tables.append(table)
 
-            if max_entities <= len(entity_nodes):
+            n_read += table.num_rows
+
+            duration = time.perf_counter() - start_time
+            log_adapter.info(f"Page processed in {duration:.2f}s. Processed {n_read} rows in total.")
+
+            if max_entities <= n_read:
                 # stop if we have enough entities
                 break
 
             has_next_page = entity_page["pageInfo"]["hasNextPage"]
             cursor = entity_page["pageInfo"]["endCursor"]
 
-    return {entity: {"nodes": entity_nodes}}
+    table = pa.concat_tables(page_tables)
+    return table
 
 
 async def download_vur(config: DownloaderConfig) -> None:
@@ -182,18 +194,19 @@ async def download_vur(config: DownloaderConfig) -> None:
                 juridiskUnderkategoriKode
                 juridiskUnderkategoriTekst
                 vurderetAreal # Vurderet grundareal. Ejendommens samlede vurderede areal i m2 (incl. Vejareal).
-                ajourfoeringDato
-                aendringDato
+                ajourfoeringDato # Timestamp for hvornår en vurdering, en eventuel vurderingsændring, årsregulering eller §4/4A vurdering er  opdateret enten maskinelt ved en batch-kørsel eller i forbindelse med sagsbehandling.
+                aendringDato # Dato for seneste gældende vurdering.
                 benyttelseKode
                 antalMedvurderedeLejligheder # Antal medvurderede lejligheder i den vurderede ejendom
                 vurderingskredsKode
+                VURMark # Angiver kilde-system og type for vurderingen -- nødvendig for at afgøre om det er den gældende vurdering
                 fkVurderingsejendomID
             }
           }
         }    
         """
     )
-    max_entities = 10000  # TODO
+    max_entities = 1_000  # TODO
 
     result = await get_all_pages_with_cursor(
         url_with_key,
@@ -203,10 +216,12 @@ async def download_vur(config: DownloaderConfig) -> None:
         max_entities,
     )
 
-    print(len(result["VUR_Ejendomsvurdering"]["nodes"]))
-    for x in result["VUR_Ejendomsvurdering"]["nodes"][:10]:
-        print(x)
+    logger.debug(f"Downloaded {result.num_rows} rows.")
 
+
+# Bitemporalitet (VUR)
+# https://confluence.sdfi.dk/pages/viewpage.action?pageId=16056524
+# NB: *Der er ikke bitemporalitet i VUR, og VUR følger ikke modelreglerne, da det er udviklet før disse blev vedtaget.*
 
 def cli_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
