@@ -1,3 +1,10 @@
+# Application files
+
+data/
+
+
+# Standard Python stuff below
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
