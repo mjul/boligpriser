@@ -16,6 +16,7 @@ from gql.transport.aiohttp import AIOHTTPTransport
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass(slots=True)
 class DownloaderConfig:
     out_dir: Path = Path("data")
@@ -51,6 +52,10 @@ class DownloaderConfig:
     def vur_ejendomsvurdering_file(self):
         """Get the path to the VUR Ejendomsvurdering Parquet file."""
         return self.out_dir / "vur_ejendomsvurdering.parquet"
+
+    def vur_vurderingsejendom_file(self):
+        """Get the path to the VUR Vurderingsejendom Parquet file."""
+        return self.out_dir / "vur_vurderingsejendom.parquet"
 
 
 class DownloaderError(RuntimeError):
@@ -107,7 +112,9 @@ async def download_bbr(config: DownloaderConfig) -> None:
     max_entities = 1_000  # TODO fix this
     output_file = config.bbr_bygning_file()
     entity = "BBR_Bygning"
-    _result = await download_to_parquet(url_with_key, query, entity, {}, max_entities, output_file)
+    _result = await download_to_parquet(
+        url_with_key, query, entity, {}, max_entities, output_file
+    )
 
 
 async def download_to_parquet(
@@ -179,7 +186,7 @@ async def download_to_parquet(
     return table
 
 
-async def download_vur(config: DownloaderConfig) -> None:
+async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
     url_with_key = config.vur_url()
     output_file = config.vur_ejendomsvurdering_file()
 
@@ -234,6 +241,47 @@ async def download_vur(config: DownloaderConfig) -> None:
     )
 
 
+async def download_vur_vurderingsejendom(config: DownloaderConfig) -> None:
+    url_with_key = config.vur_url()
+    output_file = config.vur_vurderingsejendom_file()
+
+    query = gql(
+        """
+        query GetVUR_Vurderingsejendom($cursor: String) {
+          VUR_Vurderingsejendom(
+            first: 1000
+            after: $cursor
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                vurderingsejendomID
+                datafordelerRowId
+                datafordelerRowVersion
+                datafordelerOpdateringstid
+                ESRejendomsnummer
+                ESRkommunenummer
+                VURejendomsid
+            }
+          }
+        }    
+        """
+    )
+    max_entities = 10_000_000  # TODO
+
+    entity = "VUR_Vurderingsejendom"
+    _result = await download_to_parquet(
+        url_with_key,
+        query,
+        entity,
+        {},
+        max_entities,
+        output_file,
+    )
+
+
 # Bitemporalitet (VUR)
 # https://confluence.sdfi.dk/pages/viewpage.action?pageId=16056524
 # NB: *Der er ikke bitemporalitet i VUR, og VUR følger ikke modelreglerne, da det er udviklet før disse blev vedtaget.*
@@ -244,8 +292,11 @@ def cli_parser() -> argparse.ArgumentParser:
         description="Collect Danish property-related public data to GeoParquet/Parquet"
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    p_gql = sub.add_parser("bbr", help="Download BBR data to Parquet/GeoParquet")
-    p_gql = sub.add_parser("vur", help="Download VUR data to Parquet/GeoParquet")
+    bbr_sub = sub.add_parser("bbr", help="Download BBR data to Parquet/GeoParquet")
+    vur_sub = sub.add_parser("vur", help="Download VUR data to Parquet/GeoParquet")
+    _ = vur_sub.add_argument(
+        "tabeller", nargs="*", choices=["ejendomsvurdering", "vurderingsejendom"]
+    )
     return parser
 
 
@@ -253,14 +304,18 @@ async def download(config, args):
     if args.command == "bbr":
         await download_bbr(config)
     elif args.command == "vur":
-        await download_vur(config)
+        if "ejendomsvurdering" in args.tabeller:
+            await download_vur_ejendomsvurdering(config)
+        if "vurderingsejendom" in args.tabeller:
+            await download_vur_vurderingsejendom(config)
     else:
         raise DownloaderError(f"Unknown command: {args.command}")
 
 
-
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(entity)s] %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(entity)s] %(message)s"
+    )
     args = cli_parser().parse_args()
     config = DownloaderConfig.from_env()
     asyncio.run(download(config, args))
