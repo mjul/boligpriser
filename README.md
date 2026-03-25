@@ -34,8 +34,8 @@ uv sync
 - `uv` bestyrer Python versioner og miljøer
 - `marimo` notebooks til eksperimenter
 
-- `gql` GraphQL client til indlæsning af data fra http://www.datafordeler.dk
-
+- `gql` GraphQL klient til indlæsning af data fra http://www.datafordeler.dk
+- `pyarrow` anvendes til at læse og skrive Parquet-filer
 - `geopandas` til geospatial analyse
 
 ## Data
@@ -56,6 +56,24 @@ til skitser, skemaet er den eneste reference.
 Support-afdelingen hos Datafordeler anbefaler i stedet at bruge trediepartsværktøjer som 
 [Altair GraphQL](https://altairgraphql.dev/) til at generere gyldige forespørgsler. Fejlen i deres "Byg GraphQL Query"
 er en "kendt fejl" (23 marts, 2026), og de har ikke nogen horisont for om og hvornår de retter det.
+
+### VUR
+Dette datasæt indeholder tal om ejendomsvurderingerne.
+
+#### Vurderinger fra 2022
+Vi bruger gamle vurderinger fra 2022, da der er flest af dem. Per marts 2026 er Vurderingsstyrelsen næsten halvt færdige 
+med 2022-sagerne, for 2024-sagerne er der kun udsendt omkring 380.000: 
+
+```
+    2022-vurderinger
+    
+    Deklarationer udsendt til: 1.120.000 ejendomme
+    Vurderinger udsendt til: 990.000 ejendomme
+    Klageprocent: ca. 0,75 %
+
+    Der skal sendes ca. 1,81 mio. 2022-vurderinger. Udsendelsestal er opgjort 16. marts 2026 (opdateres som udgangspunkt primo og medio hver måned). 
+```
+https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
 
 ### Kodelisterne er ikke på første normalform
 
