@@ -1,55 +1,70 @@
 # Boligpriser
 
-Map the house prices in Denmark using public data.
+(*en.* Map the house prices in Denmark using public data.)
 
-## Structure
+Kort over ejendomspriserne i Danmark.
 
-- `downloader.py` - Download the data and aggregate it into Geoparquet files.
-- `explorer.py` - Analyse and plot the data.
+## Struktur
 
-## Data Sources
+- `downloader.py` - Hent data fra [Datafordeleren](https://datafordeler.dk) og gem i GeoParquet-format.
+- `explorer.py` - analyse og kort over data.
+
+## Datakilder
+
+- [Datafordeleren](https://datafordeler.dk)
+-
 
 ## Installation
 
-Ensure you have `uv` installed.
-Fiona and GDAL wheels are not available for Python 3.14 yet, so use the older version:
+Vi forudsætter, at `uv` er installeret.
+Fiona og GDAL wheels er ikke tilgængeligt til Python 3.14 endnu, so vi bruger 3.13:
 
 ```
 uv python pin 3.13
 ```
 
-Then
+Installer pakkerne:
 
 ```
 uv sync
 ```
 
+## Teknologier
 
-## Tech Stack
+- `uv` bestyrer Python versioner og miljøer
+- `marimo` notebooks til eksperimenter
 
-- `uv` for managing Python versions and environments
-- `marimo` for the notebooks
+- `gql` GraphQL client til indlæsning af data fra http://www.datafordeler.dk
 
-- `gql` GraphQL client for downloading data from http://www.datafordeler.dk 
-
-- `geopandas` for geospatial analysis
-
-- `fiona` for reading and writing GeoJSON
-- `pyarrow` for reading and writing Parquet
+- `geopandas` til geospatial analyse
 
 ## Data
 
-### Schemas
-I recommend to download these to `schemas` for reference:
+### Gem skemaer i `schemas`
+
+Jeg anbefaler at hente GraphQL skemaerne og gemme dem i `schemas` til reference:
 
 - BBR GraphQL Schema: https://datafordeler.dk/GraphQLSchema/BBR.graphql
 - VUR GraphQL Schema: https://datafordeler.dk/GraphQLSchema/VUR.graphql
 
-### Queries
-I recommend writing these by hand rather than using the "Byg GraphQL Query" feature  on the Datafordeler website, since
-it generates invalid queries if they contain composite types. You can use it to sketch out the queries you need, then 
-use the schemas to make the queries work.
+### Forespørgsler skal bygges i hånden
 
-The support staff at Datafordeler recommended using a third-party tool to generate queries from the GraphQL schemas. 
-The buggy feature on their website is a "known defect" (March 23, 2026).
+Jeg anbefaler at skrive disse i hånden, da "Byg GraphQL Query" funktionen på Datafordeleren
+ikke genererer gyldige forespørgsler hvis man spørger på sammensatte typer. Den kan kun bruges
+til skitser, skemaet er den eneste reference.
+
+Support-afdelingen hos Datafordeler anbefaler i stedet at bruge trediepartsværktøjer som 
+[Altair GraphQL](https://altairgraphql.dev/) til at generere gyldige forespørgsler. Fejlen i deres "Byg GraphQL Query"
+er en "kendt fejl" (23 marts, 2026), og de har ikke nogen horisont for om og hvornår de retter det.
+
+### Kodelisterne er ikke på første normalform
+
+Man skal sætte sig ind i en række kodelister for at bruge systemet, f.eks.:
+
+- VUR DK kodelister: https://confluence.sdfi.dk/pages/viewpage.action?pageId=82346523
+
+Af en eller anden grund er mange af koderne samensatte, hvor det havde være mere naturligt
+at normalisere og adskille ortogonale dimensioner, svarende til første normalform for databaser.
+Det øger kompleksiteten af klientapplikationerne og skaber stærkere koblinger end nødvendigt, så
+det virker som et overraskende designvalg.
 
