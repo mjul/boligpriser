@@ -10,9 +10,7 @@ import typing
 from dataclasses import dataclass
 from pathlib import Path
 
-import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
 from gql import Client, GraphQLRequest, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
@@ -145,14 +143,14 @@ async def get_all_pages_with_cursor(
             log_adapter.info(f"Page downloaded in {duration:.2f}s")
 
             entity_page = result[entity]
-            page_df = pd.DataFrame(entity_page["nodes"])
-            table = pa.Table.from_pandas(df=page_df)
+            table = pa.Table.from_pylist(entity_page["nodes"])
             page_tables.append(table)
 
             n_read += table.num_rows
 
             duration = time.perf_counter() - start_time
-            log_adapter.info(f"Page processed in {duration:.2f}s. Processed {n_read} rows in total.")
+            log_adapter.info(f"Page processed in {duration:.2f}s.")
+            log_adapter.info(f"Processed {n_read} rows i total.")
 
             if max_entities <= n_read:
                 # stop if we have enough entities
@@ -217,6 +215,9 @@ async def download_vur(config: DownloaderConfig) -> None:
     )
 
     logger.debug(f"Downloaded {result.num_rows} rows.")
+    print("--------------------")
+    print( result[:10])
+
 
 
 # Bitemporalitet (VUR)
