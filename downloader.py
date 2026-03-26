@@ -58,6 +58,10 @@ class DownloaderConfig:
         """Get the path to the BBR Bygning Parquet file."""
         return self.out_dir / "bbr_bygning.parquet"
 
+    def bbr_bygning_kommune_file(self, kommunekode: str):
+        """Get the path to the BBR Bygning Parquet file."""
+        return self.out_dir / f"bbr_bygning-{kommunekode}.parquet"
+
     def vur_url(self):
         """Get the URL for the VUR GraphQL endpoint, including the API key."""
         return f"{self.datafordeler_graphql_url}{self.vur_path}?apikey={self.datafordeler_api_key}"
@@ -81,21 +85,34 @@ class DownloaderError(RuntimeError):
 # Fanø: 0563
 # Læsø: 0825
 #
+# https://danmarksadresser.dk/adressedata/kodelister/kommunekodeliste/
 
+KOMMUNEKODER : dict[str,str] = {"0563": "Fanø", "0825": "Læsø"} # TODO: complete
 
 async def download_bbr(config: DownloaderConfig) -> None:
+    kommunekode = "0825"
+    output_file = config.bbr_bygning_kommune_file(kommunekode)
+
+    _ = await download_bbr_kommune(config, kommunekode, output_file)
+    output_file = config.bbr_bygning_file()
+
+
+async def download_bbr_kommune(config: DownloaderConfig, kommunekode: str, output_file: Path):
+    """Hent alle bygninger i en kommune."""
+    if kommunekode not in KOMMUNEKODER:
+        raise DownloaderError(f"Kommunekode {kommunekode} is not supported")
+
     url_with_key = config.bbr_url()
 
-    # Paged query for BBR Bygninger
     query = gql(
         """
-        query GetBBRBygninger($cursor: String) {
+        query GetBBRBygninger($cursor: String, $kommunekode: String!) {
           BBR_Bygning(
             virkningstid: "2026-01-01T00:00:00+01:00"
             first: 1000
             after: $cursor
             where: {
-              kommunekode: {eq: "0825"}
+              kommunekode: {eq: $kommunekode}
               status: {eq: "6"}
             }
           ) {
@@ -105,28 +122,53 @@ async def download_bbr(config: DownloaderConfig) -> None:
             }
             nodes {
                 id_lokalId
-                id_namespace
                 kommunekode
-                status
+                status # kode for bygværkselementets status i den pågældende version, dvs. elementets tilstand i den samlede livscyklus
+                byg007Bygningsnummer # angiver bygningens nummer indenfor ejendommen
+                byg021BygningensAnvendelse # angiver bygningens hovedanvendelse
                 byg026Opfoerelsesaar
                 byg027OmTilbygningsaar
-                byg021BygningensAnvendelse
-                byg070Fredning
-                byg071BevaringsvaerdighedReference
+                byg070Fredning # angiver om bygningen er fredet
+                byg071BevaringsvaerdighedReference # linker til Kulturstyrelsens registrering i FBB (Fredede og Bevaringsværdige Bygninger)
                 grund
-                byg404Koordinat { type crs dimension wkt }
+                byg404Koordinat { type crs dimension wkt } # angiver bygningens geografiske repræsentation i form af et punkt
                 byg406Koordinatsystem
+                virkningFra # tidspunktet hvor virkningen af den pågældende version af bygværkselementet er startet
+                virkningTil # tidspunktet hvor virkningen af den pågældende version af bygværkselementet ophører
             }
           }
         }    
         """
     )
-
-    max_entities = 1_000  # TODO fix this
-    output_file = config.bbr_bygning_file()
+    logger.info(f"Downloading BBR bygning data for {kommunekode} {KOMMUNEKODER[kommunekode]}...", extra={"entity":"", "context":""})
+    schema = pa.schema([
+    pa.field("id_lokalId",         pa.string(),    nullable=False),
+    pa.field("kommunekode",         pa.string()),
+    pa.field("status", pa.string()),
+    pa.field("byg007Bygningsnummer", pa.int64(), nullable=True),
+    pa.field("byg021BygningensAnvendelse", pa.string()),
+    pa.field("byg026Opfoerelsesaar",     pa.int32(), nullable=True),
+    pa.field("byg027OmTilbygningsaar",     pa.int32(), nullable=True),
+    pa.field("byg070Fredning",     pa.string(), nullable=True),
+    pa.field("byg071BevaringsvaerdighedReference",     pa.string(), nullable=True),
+    pa.field("grund", pa.string()),
+    pa.field("byg404Koordinat", pa.struct([
+        pa.field("type", pa.string()),
+        pa.field("crs", pa.int32(), nullable=False),
+        pa.field("dimension", pa.string()),
+        pa.field("wkt", pa.string()),
+    ])),
+    pa.field("byg406Koordinatsystem", pa.string()),
+    pa.field("virkningFra", pa.string()), # TODO: convert to timestamp after loading
+    pa.field("virkningTil", pa.string()), # TODO: convert to timestamp after loading
+])
+    print(schema)
+    max_entities = 20_000  # TODO fix this
     entity = "BBR_Bygning"
+    # TODO: loop over kommunekoder
+    log_context = f"1/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
     _result = await download_to_parquet(
-        url_with_key, query, entity, {}, max_entities, output_file
+        url_with_key, query, entity, log_context,{"kommunekode": kommunekode}, max_entities, output_file, schema = schema
     )
 
 
@@ -134,9 +176,11 @@ async def download_to_parquet(
     url_with_key: str,
     query: GraphQLRequest,
     entity: str,
+    log_context: str,
     variable_values: dict[str, typing.Any],
     max_entities: int,
     output_file: Path,
+    schema = None
 ) -> pa.Table:
     """
     Page through all results for a single entity.
@@ -146,12 +190,14 @@ async def download_to_parquet(
     :param url_with_key:
     :param query:
     :param entity:
+    :param log_context: a context field to add to all log messages, use for e.g. part info when downloading in parts
     :param variable_values:
     :param max_entities:
     :param output_file: path to save the Parquet file
+    :param schema: optional schema to use for Parquet file
     :return:
     """
-    log_adapter = logging.LoggerAdapter(logger, {"entity": entity})
+    log_adapter = logging.LoggerAdapter(logger, {"entity": entity, "context": log_context})
 
     cursor = None
     has_next_page = True
@@ -174,7 +220,7 @@ async def download_to_parquet(
             log_adapter.info(f"Page downloaded in {duration:.2f}s")
 
             entity_page = result[entity]
-            table = pa.Table.from_pylist(entity_page["nodes"])
+            table = pa.Table.from_pylist(entity_page["nodes"], schema=schema)
             page_tables.append(table)
 
             n_read += table.num_rows
@@ -190,7 +236,9 @@ async def download_to_parquet(
             has_next_page = entity_page["pageInfo"]["hasNextPage"]
             cursor = entity_page["pageInfo"]["endCursor"]
 
-    table = pa.concat_tables(page_tables)
+    # Promote options: so if one table has column type string and another type null (for sparse data)
+    # it will promote the null type to a (nullable) string type
+    table = pa.concat_tables(page_tables, promote_options="default")
     log_adapter.info(f"Writing {table.num_rows} rows to {output_file}...")
     output_file.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, output_file)
@@ -241,13 +289,15 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = 2_000  # TODO
+    max_entities = 2_000_000  # TODO
 
     entity = "VUR_Ejendomsvurdering"
+    log_context = f"{config.vurderingsaar}"
     result = await download_to_parquet(
         url_with_key,
         query,
         entity,
+        log_context,
         {"vurderingsaar": config.vurderingsaar},
         max_entities,
         output_file,
@@ -285,10 +335,12 @@ async def download_vur_vurderingsejendom(config: DownloaderConfig) -> None:
     max_entities = 10_000_000  # TODO
 
     entity = "VUR_Vurderingsejendom"
+    log_context = ""
     _result = await download_to_parquet(
         url_with_key,
         query,
         entity,
+        log_context,
         {},
         max_entities,
         output_file,
