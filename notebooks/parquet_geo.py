@@ -40,7 +40,6 @@ def _():
         { "type": "Point", "crs": 25832, "dimension": "XY", "wkt": "POINT (616673.42 6351007.85)" },
     ]
     loc = locs[0]
-
     return loc, locs
 
 
@@ -134,7 +133,7 @@ def _(plot_gdf):
 
     layer = ScatterplotLayer.from_geopandas(
         plot_gdf.to_crs(epsg=4326),  # lonboard expects WGS84
-        get_fill_color=[0, 120, 255],
+        get_fill_color=[0, 120, 255, 128],
         get_radius=10,
         radius_units="meters",
     )
