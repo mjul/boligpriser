@@ -14,8 +14,21 @@ import pyarrow.parquet as pq
 from gql import Client, GraphQLRequest, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 
-logger = logging.getLogger(__name__)
+class DefaultExtrasFilter(logging.Filter):
+    """
+    Default logging filter that sets undefined entity and context attributes to blank.
+    Without that the logger would throw if the fields are used in the format string without being set.
+    """
+    defaults = {"entity": "", "context": ""}
 
+    def filter(self, record):
+        for key, val in self.defaults.items():
+            if not hasattr(record, key):
+                setattr(record, key, val)
+        return True
+
+logger = logging.getLogger(__name__)
+logger.addFilter(DefaultExtrasFilter())
 
 @dataclass(slots=True)
 class DownloaderConfig:
@@ -314,8 +327,9 @@ async def download(config, args):
 
 def main() -> None:
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(entity)s] %(message)s"
+        level=logging.INFO, format="%(asctime)s [%(entity)s] [%(context)s] %(message)s"
     )
+
     args = cli_parser().parse_args()
     config = DownloaderConfig.from_env()
     asyncio.run(download(config, args))
