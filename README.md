@@ -50,7 +50,9 @@ uv run downloader.py bbr
 
 - `gql` GraphQL klient til indlæsning af data fra http://www.datafordeler.dk
 - `pyarrow` anvendes til at læse og skrive Parquet-filer
+
 - `geopandas` til geospatial analyse
+- `lonboard` til kortvisning og visualisering
 
 ## Data
 
