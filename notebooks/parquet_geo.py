@@ -66,7 +66,8 @@ def _(mo):
 
 @app.cell
 def _(ga, locs):
-    geolocs = ga.as_wkb(ga.array([x["wkt"] for x in locs]))
+    _raw = ga.as_wkb(ga.array([x["wkt"] for x in locs])) # wkb does not attach a type
+    geolocs = ga.with_crs(_raw, "EPSG:25832")   # so we set it manually
     return (geolocs,)
 
 
@@ -120,10 +121,10 @@ def _(gdf):
 
 @app.cell
 def _(gdf):
-    # Add the missing crs
-    plot_gdf = gdf.set_crs(25832)
-    print(plot_gdf.crs)  
-
+    # If the crs is missing, we can add it like this
+    #    plot_gdf = gdf.set_crs(25832)
+    plot_gdf= gdf
+    print(plot_gdf.crs)
     return (plot_gdf,)
 
 
