@@ -25,8 +25,9 @@ def _():
     import geoarrow.pyarrow as ga
     import geoarrow.pyarrow.io as gaio
     import geopandas as gpd
+    import numpy as np
 
-    return gpd, mo, pc, pq
+    return gpd, mo, pa, pc, pq
 
 
 @app.cell(hide_code=True)
@@ -38,9 +39,33 @@ def _(mo):
 
 
 @app.cell
-def _(pq, tablewkt):
-    table = pq.read_table("data/bbr_bygning-0825.parquet")
-    print(tablewkt.schema)
+def _(pq):
+    raw_table = pq.read_table("data/bbr_bygning-0825.parquet")
+    print(raw_table.schema)
+    return (raw_table,)
+
+
+@app.cell
+def _(raw_table):
+    raw_table[:8]
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Ignore historical data, take just the rows with the last `virkningFra` for each `id_lokalId`
+    """)
+    return
+
+
+@app.cell
+def _(pa, raw_table):
+    _with_ids = raw_table.append_column("row_id", pa.array(range(raw_table.num_rows), type=pa.int64()))
+
+    _latest_row_ids = _with_ids.sort_by([("virkningFra", "ascending")]).group_by("id_lokalId", use_threads=False).aggregate([("row_id", "last"), ("virkningFra", "last")])["row_id_last"]
+
+    table = _with_ids.take(_latest_row_ids).sort_by("id_lokalId")
     return (table,)
 
 
@@ -54,7 +79,6 @@ def _(pc, table):
 @app.cell
 def _(wkt_array):
     wkt_array
-
     return
 
 
@@ -91,6 +115,7 @@ def _(gdf):
         get_fill_color=[0, 120, 255, 128],
         get_radius=10,
         radius_units="meters",
+        radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
     )
     m = Map(layer)
     return (m,)
@@ -99,6 +124,11 @@ def _(gdf):
 @app.cell
 def _(m):
     m
+    return
+
+
+@app.cell
+def _():
     return
 
 
