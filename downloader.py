@@ -84,132 +84,6 @@ class DownloaderError(RuntimeError):
     pass
 
 
-#
-# KOMMUNEKODER
-#
-# Fanø: 0563
-# Læsø: 0825
-#
-# https://danmarksadresser.dk/adressedata/kodelister/kommunekodeliste/
-
-KOMMUNEKODER: dict[str, str] = {"0563": "Fanø", "0825": "Læsø"}  # TODO: complete
-
-
-async def download_bbr(config: DownloaderConfig) -> None:
-    kommunekode = "0825"
-    output_file = config.bbr_bygning_kommune_file(kommunekode)
-
-    _ = await download_bbr_kommune(config, kommunekode, output_file)
-    output_file = config.bbr_bygning_file()
-
-
-async def download_bbr_kommune(
-    config: DownloaderConfig, kommunekode: str, output_file: Path
-):
-    """Hent alle bygninger i en kommune."""
-    if kommunekode not in KOMMUNEKODER:
-        raise DownloaderError(f"Kommunekode {kommunekode} is not supported")
-
-    url_with_key = config.bbr_url()
-
-    query = gql(
-        """
-        query GetBBRBygninger($cursor: String, $kommunekode: String!) {
-          BBR_Bygning(
-            virkningstid: "2026-01-01T00:00:00+01:00"
-            first: 1000
-            after: $cursor
-            where: {
-              kommunekode: {eq: $kommunekode}
-              status: {eq: "6"}
-            }
-          ) {
-            pageInfo {
-              endCursor
-              hasNextPage
-            }
-            nodes {
-                id_lokalId
-                kommunekode
-                status # kode for bygværkselementets status i den pågældende version, dvs. elementets tilstand i den samlede livscyklus
-                byg007Bygningsnummer # angiver bygningens nummer indenfor ejendommen
-                byg021BygningensAnvendelse # angiver bygningens hovedanvendelse
-                byg026Opfoerelsesaar
-                byg027OmTilbygningsaar
-                byg070Fredning # angiver om bygningen er fredet
-                byg071BevaringsvaerdighedReference # linker til Kulturstyrelsens registrering i FBB (Fredede og Bevaringsværdige Bygninger)
-                grund
-                byg404Koordinat { type crs dimension wkt } # angiver bygningens geografiske repræsentation i form af et punkt
-                byg406Koordinatsystem
-                virkningFra # tidspunktet hvor virkningen af den pågældende version af bygværkselementet er startet
-                virkningTil # tidspunktet hvor virkningen af den pågældende version af bygværkselementet ophører
-            }
-          }
-        }    
-        """
-    )
-    logger.info(
-        f"Downloading BBR bygning data for {kommunekode} {KOMMUNEKODER[kommunekode]}...",
-        extra={"entity": "", "context": ""},
-    )
-    schema = pa.schema(
-        [
-            pa.field("id_lokalId", pa.string(), nullable=False),
-            pa.field("kommunekode", pa.string()),
-            pa.field("status", pa.string()),
-            pa.field("byg007Bygningsnummer", pa.int64(), nullable=True),
-            pa.field("byg021BygningensAnvendelse", pa.string()),
-            pa.field("byg026Opfoerelsesaar", pa.int32(), nullable=True),
-            pa.field("byg027OmTilbygningsaar", pa.int32(), nullable=True),
-            pa.field("byg070Fredning", pa.string(), nullable=True),
-            pa.field("byg071BevaringsvaerdighedReference", pa.string(), nullable=True),
-            pa.field("grund", pa.string()),
-            pa.field(
-                "byg404Koordinat",
-                pa.struct(
-                    [
-                        pa.field("type", pa.string()),
-                        pa.field("crs", pa.int32(), nullable=False),
-                        pa.field("dimension", pa.string()),
-                        pa.field("wkt", pa.string()),
-                    ]
-                ),
-            ),
-            pa.field("byg406Koordinatsystem", pa.string()),
-            pa.field(
-                "virkningFra", pa.string()
-            ),  # TODO: convert to timestamp after loading
-            pa.field(
-                "virkningTil", pa.string()
-            ),  # TODO: convert to timestamp after loading
-        ]
-    )
-    print(schema)
-    max_entities = 20_000  # TODO fix this
-    entity = "BBR_Bygning"
-    # TODO: loop over kommunekoder
-    log_context = f"1/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
-
-    def parse_timestamps(t: pa.Table) -> pa.Table:
-        vf_col = pc.cast(t["virkningFra"], pa.timestamp("us", tz="UTC"))
-        vt_col = pc.cast(t["virkningTil"], pa.timestamp("us", tz="UTC"))
-        t = t.set_column(t.schema.get_field_index("virkningFra"), "virkningFra", vf_col)
-        t = t.set_column(t.schema.get_field_index("virkningTil"), "virkningTil", vt_col)
-        return t
-
-    _result = await download_to_parquet(
-        url_with_key,
-        query,
-        entity,
-        log_context,
-        {"kommunekode": kommunekode},
-        max_entities,
-        output_file,
-        schema=schema,
-        transform_table=parse_timestamps,
-    )
-
-
 async def download_to_parquet(
     url_with_key: str,
     query: GraphQLRequest,
@@ -291,6 +165,143 @@ async def download_to_parquet(
     log_adapter.info(f"Saved data to {output_file.name}")
 
     return table
+
+
+#
+# KOMMUNEKODER
+#
+# Fanø: 0563
+# Læsø: 0825
+#
+# https://danmarksadresser.dk/adressedata/kodelister/kommunekodeliste/
+
+KOMMUNEKODER: dict[str, str] = {"0563": "Fanø", "0825": "Læsø"}  # TODO: complete
+
+
+async def download_bbr(config: DownloaderConfig) -> None:
+    _ = await download_bbr_bygning(config)
+
+
+async def download_bbr_bygning(config: DownloaderConfig):
+    kommunekode = "0825"
+    max_entities = 1_000_000_000  # TODO fix this
+
+    # TODO: alle kommunekoder
+    log_context = f"1/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
+    kommune_output_file = config.bbr_bygning_kommune_file(kommunekode)
+    await download_bbr_bygning_kommune(
+        config, kommunekode, kommune_output_file, log_context, max_entities
+    )
+
+    # TODO: aggregate into one file
+    output_file = config.bbr_bygning_file()
+
+
+async def download_bbr_bygning_kommune(
+    config: DownloaderConfig,
+    kommunekode: str,
+    output_file: Path,
+    log_context: str,
+    max_entities: int,
+):
+    """Hent alle bygninger i en kommune."""
+    if kommunekode not in KOMMUNEKODER:
+        raise DownloaderError(f"Kommunekode {kommunekode} is not supported")
+
+    url_with_key = config.bbr_url()
+
+    query = gql(
+        """
+        query GetBBRBygninger($cursor: String, $kommunekode: String!) {
+          BBR_Bygning(
+            virkningstid: "2026-01-01T00:00:00+01:00"
+            first: 1000
+            after: $cursor
+            where: {
+              kommunekode: {eq: $kommunekode}
+              status: {eq: "6"}
+            }
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                id_lokalId
+                kommunekode
+                status # kode for bygværkselementets status i den pågældende version, dvs. elementets tilstand i den samlede livscyklus
+                byg007Bygningsnummer # angiver bygningens nummer indenfor ejendommen
+                byg021BygningensAnvendelse # angiver bygningens hovedanvendelse
+                byg026Opfoerelsesaar
+                byg027OmTilbygningsaar
+                byg070Fredning # angiver om bygningen er fredet
+                byg071BevaringsvaerdighedReference # linker til Kulturstyrelsens registrering i FBB (Fredede og Bevaringsværdige Bygninger)
+                grund
+                byg404Koordinat { type crs dimension wkt } # angiver bygningens geografiske repræsentation i form af et punkt
+                byg406Koordinatsystem
+                virkningFra # tidspunktet hvor virkningen af den pågældende version af bygværkselementet er startet
+                virkningTil # tidspunktet hvor virkningen af den pågældende version af bygværkselementet ophører
+            }
+          }
+        }    
+        """
+    )
+    logger.info(
+        f"Downloading BBR bygning data for {kommunekode} {KOMMUNEKODER[kommunekode]}...",
+        extra={"entity": "", "context": ""},
+    )
+    schema = pa.schema(
+        [
+            pa.field("id_lokalId", pa.string(), nullable=False),
+            pa.field("kommunekode", pa.string()),
+            pa.field("status", pa.string()),
+            pa.field("byg007Bygningsnummer", pa.int64(), nullable=True),
+            pa.field("byg021BygningensAnvendelse", pa.string()),
+            pa.field("byg026Opfoerelsesaar", pa.int32(), nullable=True),
+            pa.field("byg027OmTilbygningsaar", pa.int32(), nullable=True),
+            pa.field("byg070Fredning", pa.string(), nullable=True),
+            pa.field("byg071BevaringsvaerdighedReference", pa.string(), nullable=True),
+            pa.field("grund", pa.string()),
+            pa.field(
+                "byg404Koordinat",
+                pa.struct(
+                    [
+                        pa.field("type", pa.string()),
+                        pa.field("crs", pa.int32(), nullable=False),
+                        pa.field("dimension", pa.string()),
+                        pa.field("wkt", pa.string()),
+                    ]
+                ),
+            ),
+            pa.field("byg406Koordinatsystem", pa.string()),
+            pa.field(
+                "virkningFra", pa.string()
+            ),  # TODO: convert to timestamp after loading
+            pa.field(
+                "virkningTil", pa.string()
+            ),  # TODO: convert to timestamp after loading
+        ]
+    )
+    entity = "BBR_Bygning"
+
+    def parse_timestamps(t: pa.Table) -> pa.Table:
+        vf_col = pc.cast(t["virkningFra"], pa.timestamp("us", tz="UTC"))
+        vt_col = pc.cast(t["virkningTil"], pa.timestamp("us", tz="UTC"))
+        t = t.set_column(t.schema.get_field_index("virkningFra"), "virkningFra", vf_col)
+        t = t.set_column(t.schema.get_field_index("virkningTil"), "virkningTil", vt_col)
+        return t
+
+    _result = await download_to_parquet(
+        url_with_key,
+        query,
+        entity,
+        log_context,
+        {"kommunekode": kommunekode},
+        max_entities,
+        output_file,
+        schema=schema,
+        transform_table=parse_timestamps,
+    )
 
 
 async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
