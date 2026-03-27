@@ -10,15 +10,18 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 from gql import Client, GraphQLRequest, gql
 from gql.transport.aiohttp import AIOHTTPTransport
+
 
 class DefaultExtrasFilter(logging.Filter):
     """
     Default logging filter that sets undefined entity and context attributes to blank.
     Without that the logger would throw if the fields are used in the format string without being set.
     """
+
     defaults = {"entity": "", "context": ""}
 
     def filter(self, record):
@@ -27,8 +30,10 @@ class DefaultExtrasFilter(logging.Filter):
                 setattr(record, key, val)
         return True
 
+
 logger = logging.getLogger(__name__)
 logger.addFilter(DefaultExtrasFilter())
+
 
 @dataclass(slots=True)
 class DownloaderConfig:
@@ -87,7 +92,8 @@ class DownloaderError(RuntimeError):
 #
 # https://danmarksadresser.dk/adressedata/kodelister/kommunekodeliste/
 
-KOMMUNEKODER : dict[str,str] = {"0563": "Fanø", "0825": "Læsø"} # TODO: complete
+KOMMUNEKODER: dict[str, str] = {"0563": "Fanø", "0825": "Læsø"}  # TODO: complete
+
 
 async def download_bbr(config: DownloaderConfig) -> None:
     kommunekode = "0825"
@@ -97,7 +103,9 @@ async def download_bbr(config: DownloaderConfig) -> None:
     output_file = config.bbr_bygning_file()
 
 
-async def download_bbr_kommune(config: DownloaderConfig, kommunekode: str, output_file: Path):
+async def download_bbr_kommune(
+    config: DownloaderConfig, kommunekode: str, output_file: Path
+):
     """Hent alle bygninger i en kommune."""
     if kommunekode not in KOMMUNEKODER:
         raise DownloaderError(f"Kommunekode {kommunekode} is not supported")
@@ -140,35 +148,65 @@ async def download_bbr_kommune(config: DownloaderConfig, kommunekode: str, outpu
         }    
         """
     )
-    logger.info(f"Downloading BBR bygning data for {kommunekode} {KOMMUNEKODER[kommunekode]}...", extra={"entity":"", "context":""})
-    schema = pa.schema([
-    pa.field("id_lokalId",         pa.string(),    nullable=False),
-    pa.field("kommunekode",         pa.string()),
-    pa.field("status", pa.string()),
-    pa.field("byg007Bygningsnummer", pa.int64(), nullable=True),
-    pa.field("byg021BygningensAnvendelse", pa.string()),
-    pa.field("byg026Opfoerelsesaar",     pa.int32(), nullable=True),
-    pa.field("byg027OmTilbygningsaar",     pa.int32(), nullable=True),
-    pa.field("byg070Fredning",     pa.string(), nullable=True),
-    pa.field("byg071BevaringsvaerdighedReference",     pa.string(), nullable=True),
-    pa.field("grund", pa.string()),
-    pa.field("byg404Koordinat", pa.struct([
-        pa.field("type", pa.string()),
-        pa.field("crs", pa.int32(), nullable=False),
-        pa.field("dimension", pa.string()),
-        pa.field("wkt", pa.string()),
-    ])),
-    pa.field("byg406Koordinatsystem", pa.string()),
-    pa.field("virkningFra", pa.string()), # TODO: convert to timestamp after loading
-    pa.field("virkningTil", pa.string()), # TODO: convert to timestamp after loading
-])
+    logger.info(
+        f"Downloading BBR bygning data for {kommunekode} {KOMMUNEKODER[kommunekode]}...",
+        extra={"entity": "", "context": ""},
+    )
+    schema = pa.schema(
+        [
+            pa.field("id_lokalId", pa.string(), nullable=False),
+            pa.field("kommunekode", pa.string()),
+            pa.field("status", pa.string()),
+            pa.field("byg007Bygningsnummer", pa.int64(), nullable=True),
+            pa.field("byg021BygningensAnvendelse", pa.string()),
+            pa.field("byg026Opfoerelsesaar", pa.int32(), nullable=True),
+            pa.field("byg027OmTilbygningsaar", pa.int32(), nullable=True),
+            pa.field("byg070Fredning", pa.string(), nullable=True),
+            pa.field("byg071BevaringsvaerdighedReference", pa.string(), nullable=True),
+            pa.field("grund", pa.string()),
+            pa.field(
+                "byg404Koordinat",
+                pa.struct(
+                    [
+                        pa.field("type", pa.string()),
+                        pa.field("crs", pa.int32(), nullable=False),
+                        pa.field("dimension", pa.string()),
+                        pa.field("wkt", pa.string()),
+                    ]
+                ),
+            ),
+            pa.field("byg406Koordinatsystem", pa.string()),
+            pa.field(
+                "virkningFra", pa.string()
+            ),  # TODO: convert to timestamp after loading
+            pa.field(
+                "virkningTil", pa.string()
+            ),  # TODO: convert to timestamp after loading
+        ]
+    )
     print(schema)
     max_entities = 20_000  # TODO fix this
     entity = "BBR_Bygning"
     # TODO: loop over kommunekoder
     log_context = f"1/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
+
+    def parse_timestamps(t: pa.Table) -> pa.Table:
+        vf_col = pc.cast(t["virkningFra"], pa.timestamp("us", tz="UTC"))
+        vt_col = pc.cast(t["virkningTil"], pa.timestamp("us", tz="UTC"))
+        t = t.set_column(t.schema.get_field_index("virkningFra"), "virkningFra", vf_col)
+        t = t.set_column(t.schema.get_field_index("virkningTil"), "virkningTil", vt_col)
+        return t
+
     _result = await download_to_parquet(
-        url_with_key, query, entity, log_context,{"kommunekode": kommunekode}, max_entities, output_file, schema = schema
+        url_with_key,
+        query,
+        entity,
+        log_context,
+        {"kommunekode": kommunekode},
+        max_entities,
+        output_file,
+        schema=schema,
+        transform_table=parse_timestamps,
     )
 
 
@@ -180,7 +218,8 @@ async def download_to_parquet(
     variable_values: dict[str, typing.Any],
     max_entities: int,
     output_file: Path,
-    schema = None
+    schema=None,
+    transform_table: typing.Callable[pa.Table, pa.Table] | None = None,
 ) -> pa.Table:
     """
     Page through all results for a single entity.
@@ -195,9 +234,12 @@ async def download_to_parquet(
     :param max_entities:
     :param output_file: path to save the Parquet file
     :param schema: optional schema to use for Parquet file
+    :param transform_table: optional function to transform the table before saving it to disk
     :return:
     """
-    log_adapter = logging.LoggerAdapter(logger, {"entity": entity, "context": log_context})
+    log_adapter = logging.LoggerAdapter(
+        logger, {"entity": entity, "context": log_context}
+    )
 
     cursor = None
     has_next_page = True
@@ -239,6 +281,10 @@ async def download_to_parquet(
     # Promote options: so if one table has column type string and another type null (for sparse data)
     # it will promote the null type to a (nullable) string type
     table = pa.concat_tables(page_tables, promote_options="default")
+
+    if transform_table:
+        table = transform_table(table)
+
     log_adapter.info(f"Writing {table.num_rows} rows to {output_file}...")
     output_file.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(table, output_file)
