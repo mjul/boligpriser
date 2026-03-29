@@ -105,3 +105,8 @@ at normalisere og adskille ortogonale dimensioner, svarende til første normalfo
 Det øger kompleksiteten af klientapplikationerne og skaber stærkere koblinger end nødvendigt, så
 det virker som et overraskende designvalg.
 
+
+### BBR
+
+#### Kodelister
+- Statuskoder, se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus (`7 - Gældende`)
