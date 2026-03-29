@@ -74,8 +74,7 @@ Eksempler på dette er, at Datafordeleren har mange forskellige GraphQL-skemaer 
 sammenhængende graf. Selv i de enkelte GraphQL-skemaer mangler grafen. Man kan sige det er "GraphQL" uden "Graph".
 
 Konkret betyder det, at klientapplikationer selv skal lave `join` operationer, enten ved at hente alle data og gøre det
-lokalt, eller over API'et, hvilket
-giver det velkendte *1+N* problem.
+lokalt, eller over API'et, hvilket giver det velkendte *1+N* problem.
 
 ### Dataindsamling
 
@@ -86,7 +85,8 @@ Det tager lidt tid at hente alle data, da APIet ofte kun udleverer en side med 1
 Det er en engangsforteelse, så det er ikke et problem her.
 
 Da vi således ikke har væsentlig glæde af GraphQL-APIet, ville et godt alternativ være at hente alle data som filer, og
-så udtrække de relevante datapunkter fra disse.
+så udtrække de relevante datapunkter fra disse. Muligheden for at hente filer fra Datafordeleren udfases dog ultimo
+2026.
 
 ### Gem skemaer i `schemas`
 
