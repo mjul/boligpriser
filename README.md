@@ -105,8 +105,23 @@ at normalisere og adskille ortogonale dimensioner, svarende til første normalfo
 Det øger kompleksiteten af klientapplikationerne og skaber stærkere koblinger end nødvendigt, så
 det virker som et overraskende designvalg.
 
-
 ### BBR
 
+### Bygning
+
+Der er er mange statuskoder på "Livscyklus" kodelisten (se nedenfor), det lader til
+at den relevante til vort brug for `Bygning` er `6 - Opført` og ikke `7 - Gældende` som ellers.
+
 #### Kodelister
-- Statuskoder, se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus (`7 - Gældende`)
+
+##### Livscyklus
+
+Denne liste lader til at sammenblande livsyklus tilstande for flere forskellige typer data.
+Når man se på data for f.eks. `Bygning` er der bygninger med registreringer med status 6 Opført, men ikke med 7
+Gældende.
+Her ville jeg normalt sige, at der ikke er skat på kodelister, så lad os nu bare definere en for hver anvendelse,  
+så klientapplikationerne ikke skal gætte på hvordan semantikken for de samme værdier adskiller sig på tværs af entiteter
+eller forlade sig på kommentarer i dokumentationen. Så er det bedre med en eksplicit kobling der kan fungere som
+kontrakt.
+
+Se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus 
