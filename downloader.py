@@ -67,6 +67,10 @@ class DownloaderConfig:
         """Get the path to the BBR Bygning Parquet file."""
         return self.out_dir / f"bbr_bygning-{kommunekode}.parquet"
 
+    def bbr_ejendomsrelation_kommune_file(self, kommunekode: str):
+        """Get the path to the BBR Ejendomsrelation Parquet file."""
+        return self.out_dir / f"bbr_ejendomsrelation-{kommunekode}.parquet"
+
     def vur_url(self):
         """Get the URL for the VUR GraphQL endpoint, including the API key."""
         return f"{self.datafordeler_graphql_url}{self.vur_path}?apikey={self.datafordeler_api_key}"
@@ -176,14 +180,11 @@ async def download_to_parquet(
 # https://danmarksadresser.dk/adressedata/kodelister/kommunekodeliste/
 
 KOMMUNEKODER: dict[str, str] = {"0563": "Fanø", "0825": "Læsø"}  # TODO: complete
-
-
-async def download_bbr(config: DownloaderConfig) -> None:
-    _ = await download_bbr_bygning(config)
+KOMMUNEKODE_LÆSØ = "0825"
 
 
 async def download_bbr_bygning(config: DownloaderConfig):
-    kommunekode = "0825"
+    kommunekode = KOMMUNEKODE_LÆSØ
     max_entities = 1_000_000_000  # TODO fix this
 
     # TODO: alle kommunekoder
@@ -304,6 +305,76 @@ async def download_bbr_bygning_kommune(
     )
 
 
+async def download_bbr_ejendomsrelation(config: DownloaderConfig) -> None:
+    url_with_key = config.bbr_url()
+
+    query = gql(
+        """
+        query GetBBREjendomsrelation($cursor: String, $kommunekode: String!) {
+          BBR_Ejendomsrelation(
+            virkningstid: "2026-01-01T00:00:00+01:00"
+            first: 1000
+            after: $cursor
+            where: {
+              kommunekode: {eq: $kommunekode}
+              status: {
+                eq: "7" # status 7: Gældende
+              }
+            }
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                id_lokalId
+                kommunekode
+                status # kode for bygværkselementets status i den pågældende version, dvs. elementets tilstand i den samlede livscyklus 
+                bfeNummer # Long, angiver den fælles ejendomsidentifikation for den bestemte faste ejendom som den tilhørende BBR-entitet udgør eller indgår 
+                ejendomsnummer # String
+                ejendomstype # String
+                ejerlejlighed # String
+                ejerlejlighedsnummer # Long
+                vurderingsejendomsnummer # Long
+                virkningFra # tidspunktet hvor virkningen af den pågældende version af bygværkselementet er startet
+                virkningTil # tidspunktet hvor virkningen af den pågældende version af bygværkselementet ophører
+            }
+          }
+        }    
+        """
+    )
+    logger.info(
+        f"Downloading BBR ejendomsrelation data...",
+        extra={"entity": "", "context": ""},
+    )
+    entity = "BBR_Ejendomsrelation"
+    log_context = "*"
+
+    def parse_timestamps(t: pa.Table) -> pa.Table:
+        print(t.schema)
+        vf_col = pc.cast(t["virkningFra"], pa.timestamp("us", tz="UTC"))
+        vt_col = pc.cast(t["virkningTil"], pa.timestamp("us", tz="UTC"))
+        t = t.set_column(t.schema.get_field_index("virkningFra"), "virkningFra", vf_col)
+        t = t.set_column(t.schema.get_field_index("virkningTil"), "virkningTil", vt_col)
+        return t
+
+    kommunekode = KOMMUNEKODE_LÆSØ  # TODO
+    output_file = config.bbr_ejendomsrelation_kommune_file(kommunekode)
+    max_entities = 1_000_000 # TODO
+
+    _result = await download_to_parquet(
+        url_with_key,
+        query,
+        entity,
+        log_context,
+        {"kommunekode": kommunekode},
+        max_entities,
+        output_file,
+        schema=None,
+        transform_table=parse_timestamps,
+    )
+
+
 async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
     url_with_key = config.vur_url()
     output_file = config.vur_ejendomsvurdering_file()
@@ -415,6 +486,9 @@ def cli_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     bbr_sub = sub.add_parser("bbr", help="Download BBR data to Parquet/GeoParquet")
+    _ = bbr_sub.add_argument(
+        "tabeller", nargs="*", choices=["bygning", "ejendomsrelation"]
+    )
     vur_sub = sub.add_parser("vur", help="Download VUR data to Parquet/GeoParquet")
     _ = vur_sub.add_argument(
         "tabeller", nargs="*", choices=["ejendomsvurdering", "vurderingsejendom"]
@@ -424,7 +498,10 @@ def cli_parser() -> argparse.ArgumentParser:
 
 async def download(config, args):
     if args.command == "bbr":
-        await download_bbr(config)
+        if "bygning" in args.tabeller:
+            await download_bbr_bygning(config)
+        if "ejendomsrelation" in args.tabeller:
+            await download_bbr_ejendomsrelation(config)
     elif args.command == "vur":
         if "ejendomsvurdering" in args.tabeller:
             await download_vur_ejendomsvurdering(config)

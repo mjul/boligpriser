@@ -40,7 +40,8 @@ uv run downloader.py vur ejendomsvurdering vurderingsejendom
 Hent data fra BBR:
 
 ```
-uv run downloader.py bbr
+uv run downloader.py bbr bygning
+uv run downloader.py bbr ejendomsrelation
 ```
 
 ## Teknologier
@@ -55,6 +56,37 @@ uv run downloader.py bbr
 - `lonboard` til kortvisning og visualisering
 
 ## Data
+
+Helt generelt er data i Datafordeleren en værre rodebutik.
+
+### Manglende domænemodel
+
+APIet er lige blevet modernisere, men lader til at have fokuseret på det rent tekniske aspekt at introducere
+GraphQL for alle datakilder, snarere end at skabet et idiomatisk GraphQL-API, eller for den sags
+skyld at udstillet et egentligt veldesignet API, der skjuler midlertidige implementeringsdetaljer
+og udstiller data i en sammenhængende domænemodel, der understøtter de almindelige anvendelser på enkel vis.
+
+Måske skal man bare anskue det som et eksempel på Conways lov.
+
+### GraphQL uden Graph
+
+Eksempler på dette er, at Datafordeleren har mange forskellige GraphQL-skemaer i stedet for et enkelt skema med en
+sammenhængende graf. Selv i de enkelte GraphQL-skemaer mangler grafen. Man kan sige det er "GraphQL" uden "Graph".
+
+Konkret betyder det, at klientapplikationer selv skal lave `join` operationer, enten ved at hente alle data og gøre det
+lokalt, eller over API'et, hvilket
+giver det velkendte *1+N* problem.
+
+### Dataindsamling
+
+Her anvender vi GraphQL til at hente data fra Datafordeleren til lokale Parquet filer,
+hvorfra vi siden sammenstykker de relevante data.
+
+Det tager lidt tid at hente alle data, da APIet ofte kun udleverer en side med 1000 datapunkter pr. HTTP-kald.
+Det er en engangsforteelse, så det er ikke et problem her.
+
+Da vi således ikke har væsentlig glæde af GraphQL-APIet, ville et godt alternativ være at hente alle data som filer, og
+så udtrække de relevante datapunkter fra disse.
 
 ### Gem skemaer i `schemas`
 
@@ -111,6 +143,18 @@ det virker som et overraskende designvalg.
 
 Der er er mange statuskoder på "Livscyklus" kodelisten (se nedenfor), det lader til
 at den relevante til vort brug for `Bygning` er `6 - Opført` og ikke `7 - Gældende` som ellers.
+
+### Ejendomsrelation
+
+Denne entitet lader til at benytte Livscyklus statuskoderne.
+
+```
+    7 - Gældende
+    10 - Historisk
+    11 - Fejlregistreret
+```
+
+For vor anvendelser er kode 7 den interessante.
 
 #### Kodelister
 
