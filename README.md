@@ -34,7 +34,9 @@ uv sync
 Hent data om ejendomsvurderinger og vurderingsejendomme:
 
 ```
-uv run downloader.py vur ejendomsvurdering vurderingsejendom
+uv run downloader.py vur ejendomsvurdering 
+uv run downloader.py vur vurderingsejendom 
+uv run downloader.py vur bfekrydsreference 
 ```
 
 Hent data fra BBR:

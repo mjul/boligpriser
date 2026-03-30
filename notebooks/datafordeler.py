@@ -40,7 +40,8 @@ def _(os):
 @app.cell
 def _(api_key):
     bbr_url = f"https://graphql.datafordeler.dk/BBR/v1?apikey={api_key}"
-    return (bbr_url,)
+    vur_url = f"https://graphql.datafordeler.dk/VUR/v2?apikey={api_key}"
+    return bbr_url, vur_url
 
 
 @app.cell
@@ -100,6 +101,41 @@ def _(mo):
 @app.cell
 def _(pa, pc, table):
     pc.unique(table["status"]).cast(pa.int32()).sort()
+    return
+
+
+@app.cell
+async def _(download_page, gql, vur_url):
+    _query = gql(
+            """
+            query GetVUR_BFEKrydsreference($cursor: String) {
+              VUR_BFEKrydsreference(
+                first: 1000
+                after: $cursor
+              ) {
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+                nodes {
+                    BFEKrydsreferenceID
+                    BFEnummer
+                    datafordelerRowId
+                    datafordelerRowVersion
+                    datafordelerOpdateringstid
+                    fkEjendomsvurderingID
+                }
+              }
+            }    
+            """
+        )
+    bfe_result, bfe_table = await download_page(vur_url, _query, {"cursor":None}, "VUR_BFEKrydsreference")
+    return (bfe_table,)
+
+
+@app.cell
+def _(bfe_table):
+    bfe_table
     return
 
 

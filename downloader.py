@@ -83,6 +83,10 @@ class DownloaderConfig:
         """Get the path to the VUR Vurderingsejendom Parquet file."""
         return self.out_dir / "vur_vurderingsejendom.parquet"
 
+    def vur_bfekrydsreference_file(self):
+        """Get the path to the VUR BFE Krydsreference Parquet file."""
+        return self.out_dir / "vur_bfekrydsreference.parquet"
+
 
 class DownloaderError(RuntimeError):
     pass
@@ -344,7 +348,7 @@ async def download_bbr_ejendomsrelation(config: DownloaderConfig) -> None:
         """
     )
     logger.info(
-        f"Downloading BBR ejendomsrelation data...",
+        "Downloading BBR ejendomsrelation data...",
         extra={"entity": "", "context": ""},
     )
     entity = "BBR_Ejendomsrelation"
@@ -360,7 +364,7 @@ async def download_bbr_ejendomsrelation(config: DownloaderConfig) -> None:
 
     kommunekode = KOMMUNEKODE_LÆSØ  # TODO
     output_file = config.bbr_ejendomsrelation_kommune_file(kommunekode)
-    max_entities = 1_000_000 # TODO
+    max_entities = 1_000_000  # TODO
 
     _result = await download_to_parquet(
         url_with_key,
@@ -417,7 +421,7 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = 2_000_000  # TODO
+    max_entities = 5_000_000  # TODO
 
     entity = "VUR_Ejendomsvurdering"
     log_context = f"{config.vurderingsaar}"
@@ -475,6 +479,48 @@ async def download_vur_vurderingsejendom(config: DownloaderConfig) -> None:
     )
 
 
+async def download_vur_bfekrydsreference(config: DownloaderConfig) -> None:
+    url_with_key = config.vur_url()
+    output_file = config.vur_bfekrydsreference_file()
+
+    query = gql(
+        """
+        query GetVUR_BFEKrydsreference($cursor: String) {
+          VUR_BFEKrydsreference(
+            first: 1000
+            after: $cursor
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                BFEKrydsreferenceID
+                BFEnummer
+                datafordelerRowId
+                datafordelerRowVersion
+                datafordelerOpdateringstid
+                fkEjendomsvurderingID
+            }
+          }
+        }    
+        """
+    )
+    max_entities = 1_000_000_000  # TODO
+
+    entity = "VUR_BFEKrydsreference"
+    log_context = ""
+    _result = await download_to_parquet(
+        url_with_key,
+        query,
+        entity,
+        log_context,
+        {},
+        max_entities,
+        output_file,
+    )
+
+
 # Bitemporalitet (VUR)
 # https://confluence.sdfi.dk/pages/viewpage.action?pageId=16056524
 # NB: *Der er ikke bitemporalitet i VUR, og VUR følger ikke modelreglerne, da det er udviklet før disse blev vedtaget.*
@@ -491,7 +537,9 @@ def cli_parser() -> argparse.ArgumentParser:
     )
     vur_sub = sub.add_parser("vur", help="Download VUR data to Parquet/GeoParquet")
     _ = vur_sub.add_argument(
-        "tabeller", nargs="*", choices=["ejendomsvurdering", "vurderingsejendom"]
+        "tabeller",
+        nargs="*",
+        choices=["ejendomsvurdering", "vurderingsejendom", "bfekrydsreference"],
     )
     return parser
 
@@ -507,6 +555,8 @@ async def download(config, args):
             await download_vur_ejendomsvurdering(config)
         if "vurderingsejendom" in args.tabeller:
             await download_vur_vurderingsejendom(config)
+        if "bfekrydsreference" in args.tabeller:
+            await download_vur_bfekrydsreference(config)
     else:
         raise DownloaderError(f"Unknown command: {args.command}")
 
