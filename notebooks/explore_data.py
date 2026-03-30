@@ -33,7 +33,8 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    We receive spatial points in a composite EPSG 25832 coordinate system from BBR.
+    ## BBR Bygning
+    Vi modtager placeringer i EPSG 25832 koordinater fra BBR.
     """)
     return
 
@@ -54,19 +55,23 @@ def _(raw_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Ignore historical data, take just the rows with the last `virkningFra` for each `id_lokalId`
+    Ignorer historiske data, behold kun rækkerne med det nyeste `virkningFra` for hvert `id_lokalId`
     """)
     return
 
 
 @app.cell
 def _(pa, raw_table):
-    _with_ids = raw_table.append_column("row_id", pa.array(range(raw_table.num_rows), type=pa.int64()))
+    def kun_nyeste_virkningsid(t: pa.Table) -> pa.Table:
+        _with_ids = t.append_column("row_id", pa.array(range(t.num_rows), type=pa.int64()))
 
-    _latest_row_ids = _with_ids.sort_by([("virkningFra", "ascending")]).group_by("id_lokalId", use_threads=False).aggregate([("row_id", "last"), ("virkningFra", "last")])["row_id_last"]
+        _latest_row_ids = _with_ids.sort_by([("virkningFra", "ascending")]).group_by("id_lokalId", use_threads=False).aggregate([("row_id", "last"), ("virkningFra", "last")])["row_id_last"]
 
-    table = _with_ids.take(_latest_row_ids).sort_by("id_lokalId")
-    return (table,)
+        _table = _with_ids.take(_latest_row_ids).sort_by("id_lokalId")
+        return _table
+
+    table = kun_nyeste_virkningsid(raw_table)
+    return kun_nyeste_virkningsid, table
 
 
 @app.cell
@@ -127,8 +132,128 @@ def _(m):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Nu har vi således styr på bygningerne og deres placering.
+
+    ## BBR Ejendomsrelation
+    """)
+    return
+
+
 @app.cell
-def _():
+def _(pq):
+    raw_ejendomsrelation = pq.read_table("data/bbr_ejendomsrelation-0825.parquet")
+    print(raw_ejendomsrelation.schema)
+    return (raw_ejendomsrelation,)
+
+
+@app.cell
+def _(kun_nyeste_virkningsid, raw_ejendomsrelation):
+    ejendomsrelation_table = kun_nyeste_virkningsid(raw_ejendomsrelation)
+    return (ejendomsrelation_table,)
+
+
+@app.cell
+def _(ejendomsrelation_table):
+    ejendomsrelation_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Som vi kan se ovenfor er `vurderingsejendomsnummer` ikke udfyldt, så vi kan ikke bruge det til at knytte vurderingerne
+    til bygningerne.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## VUR Vurderingsejendom
+    Vi kan i stedet forsøge os med vurderingsejendommene, objektet for ejendomsvurderingerne.
+    """)
+    return
+
+
+@app.cell
+def _(pq):
+    raw_vurderingsejendom = pq.read_table("data/vur_vurderingsejendom.parquet")
+    print(raw_vurderingsejendom.schema)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Der var ikke nogen krydsreference heller.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## VUR Ejendomsvurdering
+    """)
+    return
+
+
+@app.cell
+def _(pq):
+    raw_ejendomsvurdering = pq.read_table("data/vur_ejendomsvurdering.parquet")
+    print(raw_ejendomsvurdering.schema)
+    return (raw_ejendomsvurdering,)
+
+
+@app.cell
+def _(raw_ejendomsvurdering):
+    raw_ejendomsvurdering
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Ejendomsvurderingerne har sikkert flere datapunkter pr. ejendom, så lad os prøve at gruppere og filtrere
+    """)
+    return
+
+
+@app.cell
+def _(raw_ejendomsvurdering):
+    raw_ejendomsvurdering.sort_by("aendringDato").group_by("fkVurderingsejendomID", use_threads=False).aggregate([("aendringDato", "count"), ("fkVurderingsejendomID", "last")]).sort_by("aendringDato_count")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## VUR BFE krydsreference
+    Her er endelig en nøgle til at krydse de forskellige datasæt:
+    """)
+    return
+
+
+@app.cell
+def _(pq):
+    raw_bfekryds = pq.read_table("data/vur_bfekrydsreference.parquet")
+    print(raw_bfekryds.schema)
+    return (raw_bfekryds,)
+
+
+@app.cell
+def _(raw_bfekryds):
+    raw_bfekryds.group_by(["BFEnummer"], use_threads=False).aggregate([("BFEnummer", "count")]).sort_by([("BFEnummer_count", "descending")])
+    return
+
+
+@app.cell
+def _(pc, raw_bfekryds):
+    pc.mean(raw_bfekryds.group_by(["BFEnummer"], use_threads=False).aggregate([("BFEnummer", "count")])["BFEnummer_count"])
     return
 
 
