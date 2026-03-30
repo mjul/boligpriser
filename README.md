@@ -64,16 +64,15 @@ Helt generelt er data i Datafordeleren en værre rodebutik.
 ### Manglende domænemodel
 
 APIet er lige blevet modernisere, men lader til at have fokuseret på det rent tekniske aspekt at introducere
-GraphQL for alle datakilder, snarere end at skabet et idiomatisk GraphQL-API, eller for den sags
-skyld at udstillet et egentligt veldesignet API, der skjuler midlertidige implementeringsdetaljer
-og udstiller data i en sammenhængende domænemodel, der understøtter de almindelige anvendelser på enkel vis.
-
-Måske skal man bare anskue det som et eksempel på Conways lov.
+GraphQL for alle datakilder. Det lader ikke til, at moderniseringen har været rettet mod at skabe et idiomatisk
+GraphQL-API eller udstiller data i en sammenhængende domænemodel, der skjuler midlertidige implementeringsdetaljer og
+understøtter de almindelige anvendelser på enkel vis.
 
 ### GraphQL uden Graph
 
 Eksempler på dette er, at Datafordeleren har mange forskellige GraphQL-skemaer i stedet for et enkelt skema med en
-sammenhængende graf. Selv i de enkelte GraphQL-skemaer mangler grafen. Man kan sige det er "GraphQL" uden "Graph".
+sammenhængende graf. Selv i de enkelte GraphQL-skemaer mangler grafen mellem entiteterne. Man kan sige det er "GraphQL"
+uden "Graph".
 
 Konkret betyder det, at klientapplikationer selv skal lave `join` operationer, enten ved at hente alle data og gøre det
 lokalt, eller over API'et, hvilket giver det velkendte *1+N* problem.
@@ -83,12 +82,12 @@ lokalt, eller over API'et, hvilket giver det velkendte *1+N* problem.
 Her anvender vi GraphQL til at hente data fra Datafordeleren til lokale Parquet filer,
 hvorfra vi siden sammenstykker de relevante data.
 
-Det tager lidt tid at hente alle data, da APIet ofte kun udleverer en side med 1000 datapunkter pr. HTTP-kald.
-Det er en engangsforteelse, så det er ikke et problem her.
+Det tager lidt tid at hente alle data, da APIet typisk kun udleverer en side med 1000 datapunkter pr. HTTP-kald.
+Det er en engangsforteelse, så det er ikke et stort problem her.
 
 Da vi således ikke har væsentlig glæde af GraphQL-APIet, ville et godt alternativ være at hente alle data som filer, og
 så udtrække de relevante datapunkter fra disse. Muligheden for at hente filer fra Datafordeleren udfases dog ultimo
-2026.
+2026 som led i moderniseringen til GraphQL-uden-Graph.
 
 ### Gem skemaer i `schemas`
 
@@ -134,19 +133,38 @@ Man skal sætte sig ind i en række kodelister for at bruge systemet, f.eks.:
 
 - VUR DK kodelister: https://confluence.sdfi.dk/pages/viewpage.action?pageId=82346523
 
-Af en eller anden grund er mange af koderne samensatte, hvor det havde være mere naturligt
+Af en eller anden grund er mange af koderne sammensatte, hvor det havde være mere naturligt
 at normalisere og adskille ortogonale dimensioner, svarende til første normalform for databaser.
 Det øger kompleksiteten af klientapplikationerne og skaber stærkere koblinger end nødvendigt, så
 det virker som et overraskende designvalg.
 
+#### Ejendomsvurdering
+
+Dette er selve vurderingen af en vurderingsejendom.
+
+#### Vurderingsejendom
+
+Dette er selve den vurderede ejendom.
+
+#### BFEKrydsreference
+
+Dette er en relation mellem ejendomsvurderinger og bestemte faste ejendomme (BFE) i BBR.
+
+Der er typisk under 100 vurderinger pr. ejendom, middelværdien er omkring 20 i
+et udtræk på 10 millioner rækker.
+
+Desværre er vurderingsåret ikke med i relationen til filterbrug (`where`),
+så man bliver nødt til at hente alle data for alle vurderinger fra API'et,
+1000 rækker pr. HTTP-kald.
+
 ### BBR
 
-### Bygning
+#### Bygning
 
 Der er er mange statuskoder på "Livscyklus" kodelisten (se nedenfor), det lader til
 at den relevante til vort brug for `Bygning` er `6 - Opført` og ikke `7 - Gældende` som ellers.
 
-### Ejendomsrelation
+#### Ejendomsrelation
 
 Denne entitet lader til at benytte Livscyklus statuskoderne.
 
