@@ -8,6 +8,9 @@ Kort over ejendomspriserne i Danmark.
 
 - `downloader.py` - Hent data fra [Datafordeleren](https://datafordeler.dk) og gem i GeoParquet-format.
 - `explorer.py` - analyse og kort over data.
+- `data/` - Parquet-filer med de data vi har hentet fra Datafordeleren.
+- `notebooks/` - Marimo eksperimenter med API, data og visualisering.
+- `schemas/` - GraphQL-skemaer fra Datafordeleren.
 
 ## Datakilder
 
@@ -141,6 +144,13 @@ det virker som et overraskende designvalg.
 #### Ejendomsvurdering
 
 Dette er selve vurderingen af en vurderingsejendom.
+
+Ejendomme har forskellige anvendelser, vi kigger kun på de mest enkle, `benyttelseKode`:
+
+- `01` Beboelse
+- `21` Ejerlejlighed, beboelse
+
+Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html#_A22606_62910
 
 #### Vurderingsejendom
 
