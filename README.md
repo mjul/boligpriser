@@ -109,6 +109,9 @@ Support-afdelingen hos Datafordeler anbefaler i stedet at bruge trediepartsværk
 [Altair GraphQL](https://altairgraphql.dev/) til at generere gyldige forespørgsler. Fejlen i deres "Byg GraphQL Query"
 er en "kendt fejl" (23 marts, 2026), og de har ikke nogen horisont for om og hvornår de retter det.
 
+Et andet nyttigt værktøj er [GraphQL Voyager](https://github.com/APIs-guru/graphql-voyager)
+hvor man kan visualisere et GraphQL-skema.
+
 ### VUR
 
 Dette datasæt indeholder tal om ejendomsvurderingerne.
