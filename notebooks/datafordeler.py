@@ -41,7 +41,8 @@ def _(os):
 def _(api_key):
     bbr_url = f"https://graphql.datafordeler.dk/BBR/v1?apikey={api_key}"
     vur_url = f"https://graphql.datafordeler.dk/VUR/v2?apikey={api_key}"
-    return bbr_url, vur_url
+    mat_url = f"https://graphql.datafordeler.dk/MAT/v1?apikey={api_key}"
+    return bbr_url, mat_url, vur_url
 
 
 @app.cell
@@ -104,6 +105,14 @@ def _(pa, pc, table):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## VUR BFEKrydsreference
+    """)
+    return
+
+
 @app.cell
 async def _(download_page, gql, vur_url):
     _query = gql(
@@ -136,6 +145,122 @@ async def _(download_page, gql, vur_url):
 @app.cell
 def _(bfe_table):
     bfe_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Matrikler
+    ### Ejerjlighed
+    """)
+    return
+
+
+@app.cell
+async def _(download_page, gql, mat_url):
+    _query = gql(
+            """
+            query GetMAT_Ejerlejlighed($cursor: String) {
+              MAT_Ejerlejlighed(
+                first: 1000
+                after: $cursor
+                registreringstid: "2026-01-01T00:00:00+01:00"
+                virkningstid: "2026-01-01T00:00:00+01:00"
+                where: {
+                  status: {
+                    eq: "Gældende" # status 7: Gældende
+                  }
+                }
+              ) {
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+                nodes {
+                    BFEnummer
+                    datafordelerRowId
+                    datafordelerRowVersion
+                    datafordelerOpdateringstid
+                    ejerlejlighedsnummer # identifikation af den enkelte ejerlejlighed der ligger i en hovedejendom
+                    id_lokalId
+                    samletFastEjendomLokalId
+                    status # angivelse af hvor et forretningsobjekt er i sin livscyklus
+                    virkningFra
+                    virkningTil
+                }
+              }
+            }    
+            """
+        )
+    ejl_result, ejl_table = await download_page(mat_url, _query, {"cursor":None}, "MAT_Ejerlejlighed")
+    return (ejl_table,)
+
+
+@app.cell
+def _(ejl_table):
+    ejl_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    MAT_Ejerlejlighed mangler geomterien, men der er en reference til MAT_SamletFastEjendom. Lad os se på den:
+    """)
+    return
+
+
+@app.cell
+async def _(download_page, gql, mat_url):
+    _query = gql(
+            """
+            query GetMAT_SamletFastEjendom($cursor: String) {
+              MAT_SamletFastEjendom(
+                first: 1000
+                after: $cursor
+                registreringstid: "2026-01-01T00:00:00+01:00"
+                virkningstid: "2026-01-01T00:00:00+01:00"
+                where: {
+                  status: {
+                    eq: "Gældende" # status 7: Gældende
+                  }
+                }
+              ) {
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+                nodes {
+                    BFEnummer
+                    datafordelerRowId
+                    datafordelerRowVersion
+                    datafordelerOpdateringstid
+                    geometri { type crs dimension wkt } # objektets geografiske placering, CRS: EPSG:25832
+                    id_lokalId
+                    status # angivelse af hvor et forretningsobjekt er i sin livscyklus
+                    virkningFra
+                    virkningTil
+                }
+              }
+            }    
+            """
+        )
+    sfe_result, sfe_table = await download_page(mat_url, _query, {"cursor":None}, "MAT_SamletFastEjendom")
+    return (sfe_table,)
+
+
+@app.cell
+def _(sfe_table):
+    sfe_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Samlet Fast Ejendom har hele geometrien (multi-polygon), vi ønsker os blot centerpunktet.
+    """)
     return
 
 

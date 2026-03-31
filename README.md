@@ -2,7 +2,7 @@
 
 (*en.* Map the house prices in Denmark using public data.)
 
-Kort over ejendomspriserne i Danmark.
+Kort over priserne på på villaer og ejerlejligheder i Danmark.
 
 ## Struktur
 
@@ -206,7 +206,17 @@ Se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus
 
 ### MAT
 
+> begrebet "bestemt fast ejendom" stammer oprindeligt fra Tinglysningsloven, men det bemærkes, at i Matriklen registreres også ejendomme, hvor der ikke er eller vil blive tinglyst rettigheder på. Bestemt fast ejendom underopdeles i ejendomstyperne: Samlet fast ejendom, Bygning på fremmed grund (BPFG), Ejerlejlighed - herunder ejerlejlighed i BPFG. 
+
+Se [Grunddatamodel > Matrikel > BestemtFastEjendom](https://grunddatamodel.datafordeler.dk/objekttypekatalog/)
+
+For enkelthedens skyld nøjes vi således med at læse *Samlet Fast Ejendom* og *Ejerlejlighed*. 
+
 #### Ejerlejlighed
 
 Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for
 det samme (7 - Gældende).
+
+#### Samlet fast ejendom
+
+Man kan navigere til denne fra Ejerlejlighed, den har `geometri` som er en multi-polygon.
