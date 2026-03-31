@@ -98,6 +98,7 @@ Jeg anbefaler at hente GraphQL skemaerne og gemme dem i `schemas` til reference:
 
 - BBR GraphQL Schema: https://datafordeler.dk/GraphQLSchema/BBR.graphql
 - VUR GraphQL Schema: https://datafordeler.dk/GraphQLSchema/VUR.graphql
+- MAT GraphQL Schema: https://datafordeler.dk/GraphQLSchema/MAT.graphql
 
 ### Forespørgsler skal bygges i hånden
 
@@ -133,7 +134,7 @@ med 2022-sagerne, for 2024-sagerne er der kun udsendt omkring 380.000:
 
 https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
 
-### Kodelisterne er ikke på første normalform
+#### Kodelisterne er ikke på første normalform
 
 Man skal sætte sig ind i en række kodelister for at bruge systemet, f.eks.:
 
@@ -201,4 +202,11 @@ så klientapplikationerne ikke skal gætte på hvordan semantikken for de samme 
 eller forlade sig på kommentarer i dokumentationen. Så er det bedre med en eksplicit kobling der kan fungere som
 kontrakt.
 
-Se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus 
+Se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus
+
+### MAT
+
+#### Ejerlejlighed
+
+Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for
+det samme (7 - Gældende).
