@@ -87,6 +87,10 @@ class DownloaderConfig:
         """Get the path to the VUR BFE Krydsreference Parquet file."""
         return self.out_dir / "vur_bfekrydsreference.parquet"
 
+    def vur_grundvaerdispecifikation_file(self):
+        """Get the path to the VUR Grundvaerdispecifikation Parquet file."""
+        return self.out_dir / "vur_grundvaerdispecifikation.parquet"
+
 
 class DownloaderError(RuntimeError):
     pass
@@ -521,6 +525,53 @@ async def download_vur_bfekrydsreference(config: DownloaderConfig) -> None:
     )
 
 
+async def download_vur_grundvaerdispecifikation(config: DownloaderConfig) -> None:
+    url_with_key = config.vur_url()
+    output_file = config.vur_grundvaerdispecifikation_file()
+
+    query = gql(
+        """
+        query GetVUR_Grundvaerdispecifikation($cursor: String) {
+          VUR_Grundvaerdispecifikation(
+            first: 1000
+            after: $cursor
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                GrundvaerdispecifikationID
+                loebenummer # Fortløbende nummer pr specifikation.
+                datafordelerRowId
+                datafordelerRowVersion
+                datafordelerOpdateringstid
+                fkEjendomsvurderingID
+                areal # Angivelse af arealet i m2 pr. specifikation.
+                beloeb # Udregnet grundværdi (i hele kr.) for en given grundværdispecifikation.
+                enhedBeloeb # Enhedsbeløb angiver prisen pr. enhed i en grundværdispecifikation.
+                prisKode # Priskoden angiver arten af en enhedspris i en grundværdispecifikation.
+                tekst # Forklarende tekst i tilknytning til en grundværdispecifikation.
+            }
+          }
+        }    
+        """
+    )
+    max_entities = 1_000_000_000  # TODO
+
+    entity = "VUR_Grundvaerdispecifikation"
+    log_context = ""
+    _result = await download_to_parquet(
+        url_with_key,
+        query,
+        entity,
+        log_context,
+        {},
+        max_entities,
+        output_file,
+    )
+
+
 # Bitemporalitet (VUR)
 # https://confluence.sdfi.dk/pages/viewpage.action?pageId=16056524
 # NB: *Der er ikke bitemporalitet i VUR, og VUR følger ikke modelreglerne, da det er udviklet før disse blev vedtaget.*
@@ -539,7 +590,12 @@ def cli_parser() -> argparse.ArgumentParser:
     _ = vur_sub.add_argument(
         "tabeller",
         nargs="*",
-        choices=["ejendomsvurdering", "vurderingsejendom", "bfekrydsreference"],
+        choices=[
+            "ejendomsvurdering",
+            "vurderingsejendom",
+            "bfekrydsreference",
+            "grundvaerdispecifikation",
+        ],
     )
     return parser
 
@@ -557,6 +613,8 @@ async def download(config, args):
             await download_vur_vurderingsejendom(config)
         if "bfekrydsreference" in args.tabeller:
             await download_vur_bfekrydsreference(config)
+        if "grundvaerdispecifikation" in args.tabeller:
+            await download_vur_grundvaerdispecifikation(config)
     else:
         raise DownloaderError(f"Unknown command: {args.command}")
 

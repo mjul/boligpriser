@@ -39,7 +39,8 @@ Hent data om ejendomsvurderinger og vurderingsejendomme:
 ```
 uv run downloader.py vur ejendomsvurdering 
 uv run downloader.py vur vurderingsejendom 
-uv run downloader.py vur bfekrydsreference 
+uv run downloader.py vur bfekrydsreference
+uv run downloader.py vur grundvaerdispecifikation 
 ```
 
 Hent data fra BBR:
@@ -171,6 +172,13 @@ Desværre er vurderingsåret ikke med i relationen til filterbrug (`where`),
 så man bliver nødt til at hente alle data for alle vurderinger fra API'et,
 1000 rækker pr. HTTP-kald.
 
+#### Grundvaerdispecifikation
+
+List med specifikationer til grundværdier for ejendomsvurdering.
+
+GraphQL-APIet er også her ganske sjovt,`VUR_GrundvaerdispecifikationFilterInput` lad til udelukkende
+at være møntet på klientopslag vedrørende en vurdering ad gangen.
+
 ### BBR
 
 #### Bygning
@@ -206,11 +214,13 @@ Se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus
 
 ### MAT
 
-> begrebet "bestemt fast ejendom" stammer oprindeligt fra Tinglysningsloven, men det bemærkes, at i Matriklen registreres også ejendomme, hvor der ikke er eller vil blive tinglyst rettigheder på. Bestemt fast ejendom underopdeles i ejendomstyperne: Samlet fast ejendom, Bygning på fremmed grund (BPFG), Ejerlejlighed - herunder ejerlejlighed i BPFG. 
+> begrebet "bestemt fast ejendom" stammer oprindeligt fra Tinglysningsloven, men det bemærkes, at i Matriklen
+> registreres også ejendomme, hvor der ikke er eller vil blive tinglyst rettigheder på. Bestemt fast ejendom underopdeles
+> i ejendomstyperne: Samlet fast ejendom, Bygning på fremmed grund (BPFG), Ejerlejlighed - herunder ejerlejlighed i BPFG.
 
 Se [Grunddatamodel > Matrikel > BestemtFastEjendom](https://grunddatamodel.datafordeler.dk/objekttypekatalog/)
 
-For enkelthedens skyld nøjes vi således med at læse *Samlet Fast Ejendom* og *Ejerlejlighed*. 
+For enkelthedens skyld nøjes vi således med at læse *Samlet Fast Ejendom* og *Ejerlejlighed*.
 
 #### Ejerlejlighed
 
