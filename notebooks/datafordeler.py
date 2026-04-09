@@ -194,7 +194,7 @@ async def _(download_page, gql, vur_url):
 
 @app.cell
 def _(gvspec_table):
-    gvspec_table
+    gvspec_table.sort_by([("fkEjendomsvurderingID", "ascending"), ("loebenummer", "ascending")])
     return
 
 
