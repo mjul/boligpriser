@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.21.1"
+__generated_with = "0.23.0"
 app = marimo.App()
 
 
@@ -58,6 +58,15 @@ def _(AIOHTTPTransport, Client, pa):
     return (download_page,)
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## BBR
+    ### BBR Bygning
+    """)
+    return
+
+
 @app.cell
 async def _(bbr_url, download_page, gql):
     _query = gql(
@@ -108,7 +117,8 @@ def _(pa, pc, table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## VUR BFEKrydsreference
+    ## VUR
+    ### VUR BFEKrydsreference
     """)
     return
 
@@ -145,6 +155,46 @@ async def _(download_page, gql, vur_url):
 @app.cell
 def _(bfe_table):
     bfe_table
+    return
+
+
+@app.cell
+async def _(download_page, gql, vur_url):
+    _query = gql(
+            """
+            query GetVUR_Grundvaerdispecifikation($cursor: String) {
+              VUR_Grundvaerdispecifikation(
+                first: 1000
+                after: $cursor
+              ) {
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+                nodes {
+                    GrundvaerdispecifikationID
+                    loebenummer # Fortløbende nummer pr specifikation.
+                    datafordelerRowId
+                    datafordelerRowVersion
+                    datafordelerOpdateringstid
+                    fkEjendomsvurderingID
+                    areal # Angivelse af arealet i m2 pr. specifikation.
+                    beloeb # Udregnet grundværdi (i hele kr.) for en given grundværdispecifikation.
+                    enhedBeloeb # Enhedsbeløb angiver prisen pr. enhed i en grundværdispecifikation.
+                    prisKode # Priskoden angiver arten af en enhedspris i en grundværdispecifikation.
+                    tekst # Forklarende tekst i tilknytning til en grundværdispecifikation.
+                }
+              }
+            }    
+            """
+        )
+    gvspec_result, gvspec_table = await download_page(vur_url, _query, {"cursor":None}, "VUR_Grundvaerdispecifikation")
+    return (gvspec_table,)
+
+
+@app.cell
+def _(gvspec_table):
+    gvspec_table
     return
 
 
