@@ -207,13 +207,13 @@ KOMMUNEKODE_LÆSØ = "0825"
 
 async def download_bbr_bygning(config: DownloaderConfig):
     kommunekode = KOMMUNEKODE_LÆSØ
-    max_entities = 1_000_000_000  # TODO fix this
 
     # TODO: alle kommunekoder
     log_context = f"1/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
     kommune_output_file = config.bbr_bygning_kommune_file(kommunekode)
     await download_bbr_bygning_kommune(
-        config, kommunekode, kommune_output_file, log_context, max_entities
+        config, kommunekode, kommune_output_file, log_context,
+        max_entities=None  # Ingen grænse, hent alt
     )
 
     # TODO: aggregate into one file
@@ -225,7 +225,7 @@ async def download_bbr_bygning_kommune(
     kommunekode: str,
     output_file: Path,
     log_context: str,
-    max_entities: int,
+    max_entities: int | None,
 ):
     """Hent alle bygninger i en kommune."""
     if kommunekode not in KOMMUNEKODER:
