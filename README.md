@@ -176,8 +176,17 @@ så man bliver nødt til at hente alle data for alle vurderinger fra API'et,
 
 List med specifikationer til grundværdier for ejendomsvurdering.
 
-GraphQL-APIet er også her ganske sjovt,`VUR_GrundvaerdispecifikationFilterInput` lad til udelukkende
-at være møntet på klientopslag vedrørende en vurdering ad gangen.
+GraphQL-APIet er også her ganske sjovt,`VUR_GrundvaerdispecifikationFilterInput` lader til udelukkende
+at være møntet på klientopslag vedrørende en vurdering ad gangen. 
+
+Hvis det er designformålet, ville det være mere oplagt at udstille specifikationerne som en liste direkte på
+Ejendomsvurdering snarere end tvinge klienten til ekstra kald for en typisk meget lille datamængde.
+
+Skal man hente alle data skal man således lave et HTTP-kald pr. ejendomsvurdering, eller hente det hele
+i sider på maks. 1000 elementer pr. kald.
+
+Der er over 30 millioner datapunkter, og kald tager typisk mellem 0,5 til 2 sekunder, så her skal
+man være tålmodig.
 
 ### BBR
 
@@ -215,8 +224,10 @@ Se https://teknik.bbr.dk/kodelister/0/1/0/Livscyklus
 ### MAT
 
 > begrebet "bestemt fast ejendom" stammer oprindeligt fra Tinglysningsloven, men det bemærkes, at i Matriklen
-> registreres også ejendomme, hvor der ikke er eller vil blive tinglyst rettigheder på. Bestemt fast ejendom underopdeles
-> i ejendomstyperne: Samlet fast ejendom, Bygning på fremmed grund (BPFG), Ejerlejlighed - herunder ejerlejlighed i BPFG.
+> registreres også ejendomme, hvor der ikke er eller vil blive tinglyst rettigheder på. Bestemt fast ejendom
+> underopdeles
+> i ejendomstyperne: Samlet fast ejendom, Bygning på fremmed grund (BPFG), Ejerlejlighed - herunder ejerlejlighed i
+> BPFG.
 
 Se [Grunddatamodel > Matrikel > BestemtFastEjendom](https://grunddatamodel.datafordeler.dk/objekttypekatalog/)
 

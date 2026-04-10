@@ -103,10 +103,10 @@ async def download_to_parquet(
     entity: str,
     log_context: str,
     variable_values: dict[str, typing.Any],
-    max_entities: int,
     output_file: Path,
     schema=None,
     transform_table: (collections.abc.Callable[[pa.Table], pa.Table] | None) = None,
+    max_entities: int | None = None,
 ) -> pa.Table:
     """
     Page through all results for a single entity.
@@ -136,34 +136,47 @@ async def download_to_parquet(
 
     page_tables = []
     n_read = 0
+    MAX_RETRIES: int = 42
+    retries_left: int = MAX_RETRIES
 
-    async with client as session:
-        while has_next_page:
-            log_adapter.info(f"Downloading page with cursor: {cursor}")
-            vvals = variable_values.copy()
-            vvals.update({"cursor": cursor})
+    # We create a whole new session when we retry fetching a page
+    while retries_left > 0:
+        try:
+            async with client as session:
+                while has_next_page:
+                    log_adapter.info(f"Downloading page with cursor: {cursor}")
+                    vvals = variable_values.copy()
+                    vvals.update({"cursor": cursor})
 
-            start_time = time.perf_counter()
-            result = await session.execute(query, variable_values=vvals)
-            duration = time.perf_counter() - start_time
-            log_adapter.info(f"Page downloaded in {duration:.2f}s")
+                    start_time = time.perf_counter()
+                    result = await session.execute(query, variable_values=vvals)
+                    duration = time.perf_counter() - start_time
+                    log_adapter.info(f"Page downloaded in {duration:.2f}s")
 
-            entity_page = result[entity]
-            table = pa.Table.from_pylist(entity_page["nodes"], schema=schema)
-            page_tables.append(table)
+                    entity_page = result[entity]
+                    table = pa.Table.from_pylist(entity_page["nodes"], schema=schema)
+                    page_tables.append(table)
 
-            n_read += table.num_rows
+                    n_read += table.num_rows
 
-            duration = time.perf_counter() - start_time
-            log_adapter.info(f"Page processed in {duration:.2f}s.")
-            log_adapter.info(f"Processed {n_read} rows in total.")
+                    duration = time.perf_counter() - start_time
+                    log_adapter.info(f"Page processed in {duration:.2f}s.")
+                    log_adapter.info(f"Processed {n_read} rows in total.")
 
-            if max_entities <= n_read:
-                # stop if we have enough entities
-                break
+                    if max_entities is not None and max_entities <= n_read:
+                        # stop if we have enough entities
+                        break
 
-            has_next_page = entity_page["pageInfo"]["hasNextPage"]
-            cursor = entity_page["pageInfo"]["endCursor"]
+                    has_next_page = entity_page["pageInfo"]["hasNextPage"]
+                    cursor = entity_page["pageInfo"]["endCursor"]
+                    # Reset on success
+                    retries_left = MAX_RETRIES
+
+        except Exception as e:
+            log_adapter.warning(f"Error downloading page with cursor {cursor}: {e}")
+            retries_left -= 1
+            await asyncio.sleep(0.5)
+            log_adapter.warning(f"Retrying download (Retries left: {retries_left})...")
 
     # Promote options: so if one table has column type string and another type null (for sparse data)
     # it will promote the null type to a (nullable) string type
@@ -307,10 +320,10 @@ async def download_bbr_bygning_kommune(
         entity,
         log_context,
         {"kommunekode": kommunekode},
-        max_entities,
         output_file,
         schema=schema,
         transform_table=parse_timestamps,
+        max_entities=max_entities,
     )
 
 
@@ -377,10 +390,10 @@ async def download_bbr_ejendomsrelation(config: DownloaderConfig) -> None:
         entity,
         log_context,
         {"kommunekode": kommunekode},
-        max_entities,
         output_file,
         schema=None,
         transform_table=parse_timestamps,
+        max_entities=max_entities,
     )
 
 
@@ -436,8 +449,8 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         entity,
         log_context,
         {"vurderingsaar": config.vurderingsaar},
-        max_entities,
         output_file,
+        max_entities=max_entities,
     )
 
 
@@ -479,8 +492,8 @@ async def download_vur_vurderingsejendom(config: DownloaderConfig) -> None:
         entity,
         log_context,
         {},
-        max_entities,
         output_file,
+        max_entities=max_entities,
     )
 
 
@@ -521,8 +534,8 @@ async def download_vur_bfekrydsreference(config: DownloaderConfig) -> None:
         entity,
         log_context,
         {},
-        max_entities,
         output_file,
+        max_entities=max_entities,
     )
 
 
@@ -558,7 +571,6 @@ async def download_vur_grundvaerdispecifikation(config: DownloaderConfig) -> Non
         }    
         """
     )
-    max_entities = 1_000_000_000  # TODO
 
     entity = "VUR_Grundvaerdispecifikation"
     log_context = ""
@@ -568,8 +580,8 @@ async def download_vur_grundvaerdispecifikation(config: DownloaderConfig) -> Non
         entity,
         log_context,
         {},
-        max_entities,
         output_file,
+        max_entities=None,  # ingen grænse, hent alle
     )
 
 
