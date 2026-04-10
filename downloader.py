@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import collections
 import logging
 import os
 import time
@@ -43,7 +44,7 @@ class DownloaderConfig:
     vur_path: str = "/VUR/v2"
     vurderingsaar: int = 2022  # dette år har flest data, se https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
     datafordeler_api_key: str | None = None
-    timeout_seconds: int = 120.0
+    timeout_seconds: int = 120
 
     @classmethod
     def from_env(cls) -> "DownloaderConfig":
@@ -105,7 +106,7 @@ async def download_to_parquet(
     max_entities: int,
     output_file: Path,
     schema=None,
-    transform_table: typing.Callable[pa.Table, pa.Table] | None = None,
+    transform_table: (collections.abc.Callable[[pa.Table], pa.Table] | None) = None,
 ) -> pa.Table:
     """
     Page through all results for a single entity.
