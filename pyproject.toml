@@ -17,3 +17,8 @@ dependencies = [
     "pyogrio>=0.12.1",
     "shapely>=2.1.2",
 ]
+
+[dependency-groups]
+dev = [
+    "ty>=0.0.29",
+]
