@@ -138,9 +138,10 @@ async def download_to_parquet(
     n_read = 0
     MAX_RETRIES: int = 42
     retries_left: int = MAX_RETRIES
+    done = False
 
     # We create a whole new session when we retry fetching a page
-    while retries_left > 0:
+    while (not done) and (retries_left > 0):
         try:
             async with client as session:
                 while has_next_page:
@@ -169,6 +170,10 @@ async def download_to_parquet(
 
                     has_next_page = entity_page["pageInfo"]["hasNextPage"]
                     cursor = entity_page["pageInfo"]["endCursor"]
+
+                    if not has_next_page:
+                        done = True
+
                     # Reset on success
                     retries_left = MAX_RETRIES
 
@@ -482,7 +487,7 @@ async def download_vur_vurderingsejendom(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = 10_000_000  # TODO
+    max_entities = None # Download all
 
     entity = "VUR_Vurderingsejendom"
     log_context = ""

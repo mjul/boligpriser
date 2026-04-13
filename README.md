@@ -161,6 +161,8 @@ Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ej
 
 Dette er selve den vurderede ejendom.
 
+Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
+
 #### BFEKrydsreference
 
 Dette er en relation mellem ejendomsvurderinger og bestemte faste ejendomme (BFE) i BBR.
