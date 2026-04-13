@@ -425,6 +425,7 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
                 id
                 datafordelerRowId
                 datafordelerRowVersion
+                aar
                 ejendomvaerdiBeloeb
                 grundvaerdiBeloeb
                 juridiskKategoriKode # Kode der angiver den juridiske kategori, som ejendommen er tildelt ved denne ejendomsvurdering.
@@ -444,7 +445,6 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = 5_000_000  # TODO
 
     entity = "VUR_Ejendomsvurdering"
     log_context = f"{config.vurderingsaar}"
@@ -455,7 +455,7 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         log_context,
         {"vurderingsaar": config.vurderingsaar},
         output_file,
-        max_entities=max_entities,
+        max_entities=None, # download alle for vurderingsåret
     )
 
 
