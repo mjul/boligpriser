@@ -114,10 +114,80 @@ def _(pa, pc, table):
     return
 
 
+@app.cell
+def _():
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
     ## VUR
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### VUR Ejendomsvurdering
+    """)
+    return
+
+
+@app.cell
+async def _(download_page, gql, vur_url):
+    _query = gql(
+    """
+            query GetVUR_Ejendomsvurdering($cursor: String, $vurderingsaar: Long!) {
+              VUR_Ejendomsvurdering(
+                first: 1000
+                after: $cursor
+                where: {
+                  aar: {eq: $vurderingsaar}
+                }
+              ) {
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+                nodes {
+                    id
+                    datafordelerRowId
+                    datafordelerRowVersion
+                    aar
+                    ejendomvaerdiBeloeb
+                    grundvaerdiBeloeb
+                    juridiskKategoriKode # Kode der angiver den juridiske kategori, som ejendommen er tildelt ved denne ejendomsvurdering.
+                    juridiskKategoriTekst # Tekst, der beskriver den juridiske kategori, som ejendommen er tildelt ved denne ejendomsvurdering
+                    juridiskUnderkategoriKode
+                    juridiskUnderkategoriTekst
+                    vurderetAreal # Vurderet grundareal. Ejendommens samlede vurderede areal i m2 (incl. Vejareal).
+                    ajourfoeringDato # Timestamp for hvornår en vurdering, en eventuel vurderingsændring, årsregulering eller §4/4A vurdering er  opdateret enten maskinelt ved en batch-kørsel eller i forbindelse med sagsbehandling.
+                    aendringDato # Dato for seneste gældende vurdering.
+                    benyttelseKode
+                    antalMedvurderedeLejligheder # Antal medvurderede lejligheder i den vurderede ejendom
+                    vurderingskredsKode
+                    VURMark # Angiver kilde-system og type for vurderingen -- nødvendig for at afgøre om det er den gældende vurdering
+                    fkVurderingsejendomID
+                }
+              }
+            }    
+            """
+        )
+    ev_result, ev_table = await download_page(vur_url, _query, {"cursor":None, "vurderingsaar": 2023}, "VUR_Ejendomsvurdering")
+    return (ev_table,)
+
+
+@app.cell
+def _(ev_table):
+    ev_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ### VUR BFEKrydsreference
     """)
     return
@@ -155,6 +225,14 @@ async def _(download_page, gql, vur_url):
 @app.cell
 def _(bfe_table):
     bfe_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### VUR Grundværdispecifikation
+    """)
     return
 
 
