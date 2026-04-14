@@ -179,7 +179,7 @@ så man bliver nødt til at hente alle data for alle vurderinger fra API'et,
 List med specifikationer til grundværdier for ejendomsvurdering.
 
 GraphQL-APIet er også her ganske sjovt,`VUR_GrundvaerdispecifikationFilterInput` lader til udelukkende
-at være møntet på klientopslag vedrørende en vurdering ad gangen. 
+at være møntet på klientopslag vedrørende en vurdering ad gangen.
 
 Hvis det er designformålet, ville det være mere oplagt at udstille specifikationerne som en liste direkte på
 Ejendomsvurdering snarere end tvinge klienten til ekstra kald for en typisk meget lille datamængde.
@@ -196,6 +196,9 @@ man være tålmodig.
 
 Der er er mange statuskoder på "Livscyklus" kodelisten (se nedenfor), det lader til
 at den relevante til vort brug for `Bygning` er `6 - Opført` og ikke `7 - Gældende` som ellers.
+
+BBR indeholder mange flere bygninger, end folks hjem, de er tildelt anvendelseskoder, `byg021BygningensAnvendelse`.
+Se kodelisten her: https://teknik.bbr.dk/kodelister/0/1/0/BygAnvendelse
 
 #### Ejendomsrelation
 

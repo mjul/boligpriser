@@ -259,7 +259,7 @@ async def download_bbr_bygning_kommune(
                 kommunekode
                 status # kode for bygværkselementets status i den pågældende version, dvs. elementets tilstand i den samlede livscyklus
                 byg007Bygningsnummer # angiver bygningens nummer indenfor ejendommen
-                byg021BygningensAnvendelse # angiver bygningens hovedanvendelse
+                byg021BygningensAnvendelse # angiver bygningens hovedanvendelse, se kodeliste https://teknik.bbr.dk/kodelister/0/1/0/BygAnvendelse
                 byg026Opfoerelsesaar
                 byg027OmTilbygningsaar
                 byg070Fredning # angiver om bygningen er fredet
