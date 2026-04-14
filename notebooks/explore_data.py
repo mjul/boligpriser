@@ -70,14 +70,75 @@ def _(bbr_bygning_raw_table, pa):
         _table = _with_ids.take(_latest_row_ids).sort_by("id_lokalId")
         return _table
 
-    bbr_bygning_table = kun_nyeste_virkningsid(bbr_bygning_raw_table)
-    return bbr_bygning_table, kun_nyeste_virkningsid
+    bbr_bygning_alle_table = kun_nyeste_virkningsid(bbr_bygning_raw_table)
+    return bbr_bygning_alle_table, kun_nyeste_virkningsid
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Bygningernes anvendelser
+    """)
+    return
 
 
 @app.cell
-def _(bbr_bygning_table, pc):
-    wkt_array = pc.struct_field(bbr_bygning_table.column("byg404Koordinat"), "wkt")
-    crs_array = pc.struct_field(bbr_bygning_table.column("byg404Koordinat"), "crs")
+def _(bbr_bygning_alle_table):
+    bbr_bygning_alle_table.group_by(["byg021BygningensAnvendelse"]).aggregate([("byg021BygningensAnvendelse", "count")])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Bemærk, at anvendelserne har typen `String`.
+
+    Man kan se anvendelserne på kodelisten her: https://teknik.bbr.dk/kodelister/0/1/0/BygAnvendelse
+
+    Her er nogle af de hyppigste koder. Mange af dem har vi ikke interesse i:
+
+    - `110` `Stuehus til landbrugsejendom`
+    - `120` `Fritliggende enfamiliehus`
+    - `140` `Etagebolig-bygning, flerfamiliehus eller to-familiehus`
+    - `510` `Sommerhus`
+    - `910` `Garage`
+    - `920` `Carport`
+    - `930` `Udhus`
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Bygningernes beliggenhed
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Lad os forsimple lidt, så vi kun kigger på villaer (`120`), lejligheder (`140`) og sommerhuse (`510`).
+    """)
+    return
+
+
+@app.cell
+def _(bbr_bygning_alle_table, pa, pc):
+    is_boliger = pc.is_in(
+        pc.field("byg021BygningensAnvendelse"),
+        value_set=pa.array(["120", "140", "510"])
+    )
+
+    bbr_bygning_boliger_table = bbr_bygning_alle_table.filter(is_boliger)
+    return (bbr_bygning_boliger_table,)
+
+
+@app.cell
+def _(bbr_bygning_boliger_table, pc):
+    wkt_array = pc.struct_field(bbr_bygning_boliger_table.column("byg404Koordinat"), "wkt")
+    crs_array = pc.struct_field(bbr_bygning_boliger_table.column("byg404Koordinat"), "crs")
     return crs_array, wkt_array
 
 
@@ -88,9 +149,9 @@ def _(wkt_array):
 
 
 @app.cell
-def _(bbr_bygning_table, crs_array, gpd, wkt_array):
+def _(bbr_bygning_boliger_table, crs_array, gpd, wkt_array):
     # Convert full table to pandas (drop the struct column first to avoid issues)
-    df = bbr_bygning_table.drop(["byg404Koordinat"]).to_pandas()
+    df = bbr_bygning_boliger_table.drop(["byg404Koordinat"]).to_pandas()
 
     # Convert the wkt array to a pandas Series
     wkt_series = wkt_array.to_pandas()
@@ -114,10 +175,21 @@ def _(bbr_bygning_gdf):
 @app.cell
 def _(bbr_bygning_gdf):
     from lonboard import Map, ScatterplotLayer
+    from lonboard.colormap import apply_categorical_cmap
+
+    # Colour according to Anvendelse
+    colour_map = {
+        "120": [0, 120, 255, 180],
+        "140": [255, 140, 0, 180],
+        "510": [0, 180, 90, 180],
+    }
+
+    fill_colours = apply_categorical_cmap(bbr_bygning_gdf["byg021BygningensAnvendelse"], colour_map)
 
     layer = ScatterplotLayer.from_geopandas(
         bbr_bygning_gdf.to_crs(epsg=4326),  # lonboard expects WGS84
-        get_fill_color=[0, 120, 255, 128],
+        #get_fill_color=[0, 120, 255, 128],
+        get_fill_color=fill_colours,
         get_radius=10,
         radius_units="meters",
         radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
@@ -136,7 +208,13 @@ def _(m):
 def _(mo):
     mo.md(r"""
     Nu har vi således styr på bygningerne og deres placering.
+    """)
+    return
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## BBR Ejendomsrelation
 
     Her kan vi se bygningens BFE-nummer. Dette er nøglen til at koble det til vurderingerne.
@@ -293,14 +371,14 @@ def _(ejendomsrelation_table):
 
 
 @app.cell
-def _(bbr_bygning_table):
-    bbr_bygning_table.schema
+def _(bbr_bygning_boliger_table):
+    bbr_bygning_boliger_table.schema
     return
 
 
 @app.cell
-def _(bbr_bygning_table, bolig_vurd_med_bfe, ejendomsrelation_table):
-    bygning_vurd = bolig_vurd_med_bfe.join(ejendomsrelation_table.drop_columns(["vurderingsejendomsnummer","row_id", "virkningFra", "virkningTil"]), keys=["BFEnummer"], right_keys=["bfeNummer"]).join(bbr_bygning_table.drop_columns(["byg404Koordinat", "row_id", "virkningFra", "virkningTil", "kommunekode"]).rename_columns({"status": "bbr_status"}), keys=["id_lokalId"], right_keys=["id_lokalId"], join_type="inner")
+def _(bbr_bygning_boliger_table, bolig_vurd_med_bfe, ejendomsrelation_table):
+    bygning_vurd = bolig_vurd_med_bfe.join(ejendomsrelation_table.drop_columns(["vurderingsejendomsnummer","row_id", "virkningFra", "virkningTil"]), keys=["BFEnummer"], right_keys=["bfeNummer"]).join(bbr_bygning_boliger_table.drop_columns(["byg404Koordinat", "row_id", "virkningFra", "virkningTil", "kommunekode"]).rename_columns({"status": "bbr_status"}), keys=["id_lokalId"], right_keys=["id_lokalId"], join_type="inner")
     bygning_vurd.schema
     return (bygning_vurd,)
 
@@ -320,8 +398,8 @@ def _(mo):
 
 
 @app.cell
-def _(bbr_bygning_table, pc):
-    print("Kommunekoder for bygninger i vores datasæt:", pc.unique(bbr_bygning_table.column("kommunekode")))
+def _(bbr_bygning_boliger_table, pc):
+    print("Kommunekoder for bygninger i vores datasæt:", pc.unique(bbr_bygning_boliger_table.column("kommunekode")))
     return
 
 
