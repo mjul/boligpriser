@@ -198,6 +198,20 @@ async def download_to_parquet(
     return table
 
 
+def combine_parquet_files(input_files: list[Path], output_file: Path) -> None:
+    """Combine multiple Parquet files into one. Input files must have the same schema."""
+    assert(input_files is not None)
+    assert(output_file is not None)
+    assert(len(input_files) > 0)
+    assert all(input_file.exists() for input_file in input_files)
+    logger.info(f"Combining {len(input_files)} Parquet files into {output_file}...")
+    schema = pq.ParquetFile(input_files[0]).schema.to_arrow_schema()
+    with pq.ParquetWriter(output_file, schema) as writer:
+        for file in input_files:
+            logger.info(f"Adding {file} to {output_file}...")
+            table = pq.read_table(file)
+            writer.write_table(table)
+
 #
 # KOMMUNEKODER
 #
@@ -206,23 +220,34 @@ async def download_to_parquet(
 #
 # https://danmarksadresser.dk/adressedata/kodelister/kommunekodeliste/
 
-KOMMUNEKODER: dict[str, str] = {"0563": "Fanø", "0825": "Læsø"}  # TODO: complete
+# Vi bruger nogle af de små kommuner til at eksperimentere med
+KOMMUNEKODER: dict[str, str] = {"0155": "Dragør", "0482": "Langeland", "0563": "Fanø", "0825": "Læsø"}  # TODO: complete
 KOMMUNEKODE_LÆSØ = "0825"
 
-
 async def download_bbr_bygning(config: DownloaderConfig):
-    kommunekode = KOMMUNEKODE_LÆSØ
+    kommune_files = []
+    for i, (kommunekode, kommunenavn) in enumerate(sorted(KOMMUNEKODER.items())):
+        logger.info(
+            f"Downloading BBR bygning data for {kommunenavn} ({kommunekode})...",
+            extra={"entity": "", "context": ""},
+        )
+        log_context = (
+            f"{i + 1}/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
+        )
+        kommune_output_file = config.bbr_bygning_kommune_file(kommunekode)
+        kommune_files.append(kommune_output_file)
+        await download_bbr_bygning_kommune(
+            config,
+            kommunekode,
+            kommune_output_file,
+            log_context,
+            max_entities=None,  # Ingen grænse, hent alt
+        )
 
-    # TODO: alle kommunekoder
-    log_context = f"1/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
-    kommune_output_file = config.bbr_bygning_kommune_file(kommunekode)
-    await download_bbr_bygning_kommune(
-        config, kommunekode, kommune_output_file, log_context,
-        max_entities=None  # Ingen grænse, hent alt
-    )
-
-    # TODO: aggregate into one file
-    output_file = config.bbr_bygning_file()
+    # Take all the kommune files and combine them into one
+    # We could also use a Parquet Dataset, but let's keep it simple, it is very little data
+    if kommune_files:
+        combine_parquet_files(kommune_files, config.bbr_bygning_file())
 
 
 async def download_bbr_bygning_kommune(
@@ -247,7 +272,8 @@ async def download_bbr_bygning_kommune(
             after: $cursor
             where: {
               kommunekode: {eq: $kommunekode}
-              status: {eq: "6"}
+              status: {eq: "6"} # 6 er "Opført"
+              byg021BygningensAnvendelse: {in: ["120", "140"]} # begræns til villaer og lejligheder
             }
           ) {
             pageInfo {
@@ -455,7 +481,7 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         log_context,
         {"vurderingsaar": config.vurderingsaar},
         output_file,
-        max_entities=None, # download alle for vurderingsåret
+        max_entities=None,  # download alle for vurderingsåret
     )
 
 
@@ -487,7 +513,7 @@ async def download_vur_vurderingsejendom(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = None # Download all
+    max_entities = None  # Download all
 
     entity = "VUR_Vurderingsejendom"
     log_context = ""
