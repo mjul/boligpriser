@@ -68,6 +68,10 @@ class DownloaderConfig:
         """Get the path to the BBR Bygning Parquet file."""
         return self.out_dir / f"bbr_bygning-{kommunekode}.parquet"
 
+    def bbr_ejendomsrelation_file(self):
+        """Get the path to the BBR Ejendomsrelation Parquet file."""
+        return self.out_dir / "bbr_ejendomsrelation.parquet"
+
     def bbr_ejendomsrelation_kommune_file(self, kommunekode: str):
         """Get the path to the BBR Ejendomsrelation Parquet file."""
         return self.out_dir / f"bbr_ejendomsrelation-{kommunekode}.parquet"
@@ -91,6 +95,7 @@ class DownloaderConfig:
     def vur_grundvaerdispecifikation_file(self):
         """Get the path to the VUR Grundvaerdispecifikation Parquet file."""
         return self.out_dir / "vur_grundvaerdispecifikation.parquet"
+
 
 
 class DownloaderError(RuntimeError):
@@ -359,6 +364,42 @@ async def download_bbr_bygning_kommune(
 
 
 async def download_bbr_ejendomsrelation(config: DownloaderConfig) -> None:
+    kommune_files = []
+    for i, (kommunekode, kommunenavn) in enumerate(sorted(KOMMUNEKODER.items())):
+        logger.info(
+            f"Downloading BBR Ejendomsrelation data for {kommunenavn} ({kommunekode})...",
+            extra={"entity": "", "context": ""},
+        )
+        log_context = (
+            f"{i + 1}/{len(KOMMUNEKODER)} {kommunekode} {KOMMUNEKODER[kommunekode]}"
+        )
+        kommune_output_file = config.bbr_ejendomsrelation_kommune_file(kommunekode)
+        kommune_files.append(kommune_output_file)
+        await download_bbr_ejendomsrelation_kommune(
+            config,
+            kommunekode,
+            kommune_output_file,
+            log_context,
+            max_entities=None,  # Ingen grænse, hent alt
+        )
+
+    # Take all the kommune files and combine them into one
+    # We could also use a Parquet Dataset, but let's keep it simple, it is very little data
+    if kommune_files:
+        combine_parquet_files(kommune_files, config.bbr_ejendomsrelation_file())
+
+
+async def download_bbr_ejendomsrelation_kommune(
+    config: DownloaderConfig,
+    kommunekode: str,
+    output_file: Path,
+    log_context: str,
+    max_entities: int | None,
+):
+    """Hent alle bygninger i en kommune."""
+    if kommunekode not in KOMMUNEKODER:
+        raise DownloaderError(f"Kommunekode {kommunekode} is not supported")
+
     url_with_key = config.bbr_url()
 
     query = gql(
@@ -411,9 +452,7 @@ async def download_bbr_ejendomsrelation(config: DownloaderConfig) -> None:
         t = t.set_column(t.schema.get_field_index("virkningTil"), "virkningTil", vt_col)
         return t
 
-    kommunekode = KOMMUNEKODE_LÆSØ  # TODO
     output_file = config.bbr_ejendomsrelation_kommune_file(kommunekode)
-    max_entities = 1_000_000  # TODO
 
     _result = await download_to_parquet(
         url_with_key,
