@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.0"
+__generated_with = "0.23.1"
 app = marimo.App()
 
 
@@ -116,8 +116,58 @@ def _(pa, pc, table):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### BBR Ejendomsrelation
+    """)
+    return
+
+
 @app.cell
-def _():
+async def _(bbr_url, download_page, gql):
+    _query = gql(
+        """
+        query GetBBREjendomsrelation($cursor: String, $kommunekode: String!) {
+          BBR_Ejendomsrelation(
+            virkningstid: "2026-01-01T00:00:00+01:00"
+            first: 1000
+            after: $cursor
+            where: {
+              kommunekode: {eq: $kommunekode}
+              status: { eq: "7" } #  7: Gældende
+              bfeNummer: {eq: 3253407}
+            }
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                id_lokalId
+                kommunekode
+                status # kode for bygværkselementets status i den pågældende version, dvs. elementets tilstand i den samlede livscyklus 
+                bfeNummer # Long, angiver den fælles ejendomsidentifikation for den bestemte faste ejendom som den tilhørende BBR-entitet udgør eller indgår 
+                ejendomsnummer # String
+                ejendomstype # String
+                ejerlejlighed # String
+                ejerlejlighedsnummer # Long
+                vurderingsejendomsnummer # Long
+                virkningFra # tidspunktet hvor virkningen af den pågældende version af bygværkselementet er startet
+                virkningTil # tidspunktet hvor virkningen af den pågældende version af bygværkselementet ophører
+            }
+          }
+        }    
+        """
+    )
+
+    er_result, er_table = await download_page(bbr_url, _query, {"cursor":None, "kommunekode": "0825"}, "BBR_Ejendomsrelation")
+    return (er_table,)
+
+
+@app.cell
+def _(er_table):
+    er_table
     return
 
 
