@@ -515,6 +515,30 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
 
     entity = "VUR_Ejendomsvurdering"
     log_context = f"{config.vurderingsaar}"
+
+    def parse_timestamps_and_encode_categorical_labels(t: pa.Table) -> pa.Table:
+        aj_col = pc.cast(
+            t["ajourfoeringDato"], pa.timestamp("us", tz="UTC")
+        )  # Example: `2025-10-02T12:30:01.000000Z`
+        # we do not convert aendringDato since Arrow does not have a local-date like data type (date32 would be closest)
+        t = t.set_column(
+            t.schema.get_field_index("ajourfoeringDato"), "ajourfoeringDato", aj_col
+        )
+        # Simple conversion (not using '...kode' as key)
+        jk_col = t.column("juridiskKategoriTekst").combine_chunks().dictionary_encode()
+        ju_col = t.column("juridiskUnderkategoriTekst").combine_chunks().dictionary_encode()
+        t = t.set_column(
+            t.schema.get_field_index("juridiskKategoriTekst"),
+            "juridiskKategoriTekst",
+            jk_col,
+        )
+        t = t.set_column(
+            t.schema.get_field_index("juridiskUnderkategoriTekst"),
+            "juridiskUnderkategoriTekst",
+            ju_col,
+        )
+        return t
+
     result = await download_to_parquet(
         url_with_key,
         query,
@@ -522,6 +546,7 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         log_context,
         {"vurderingsaar": config.vurderingsaar},
         output_file,
+        transform_table=parse_timestamps_and_encode_categorical_labels,
         max_entities=None,  # download alle for vurderingsåret
     )
 
