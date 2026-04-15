@@ -97,13 +97,13 @@ def _(mo):
 
     Her er nogle af de hyppigste koder. Mange af dem har vi ikke interesse i:
 
-    - `110` `Stuehus til landbrugsejendom`
-    - `120` `Fritliggende enfamiliehus`
-    - `140` `Etagebolig-bygning, flerfamiliehus eller to-familiehus`
-    - `510` `Sommerhus`
-    - `910` `Garage`
-    - `920` `Carport`
-    - `930` `Udhus`
+    - `110` Stuehus til landbrugsejendom
+    - `120` Fritliggende enfamiliehus
+    - `140` Etagebolig-bygning, flerfamiliehus eller to-familiehus
+    - `510` Sommerhus
+    - `910` Garage
+    - `920` Carport
+    - `930` Udhus
     """)
     return
 
