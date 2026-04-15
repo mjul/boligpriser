@@ -73,11 +73,13 @@ async def _(bbr_url, download_page, gql):
             """
             query ($cursor: String, $kommunekode: String!) {
               BBR_Bygning(
+                #registreringstid: "2026-01-01T00:00:00+01:00"
                 virkningstid: "2026-01-01T00:00:00+01:00"
                 first: 1000
                 after: $cursor
                 where: {
                   kommunekode: {eq: $kommunekode}
+                  #byg021BygningensAnvendelse: {in: ["120", "140", "510"]}
                   #status: {eq: "6"}
                 }
               ) {
@@ -144,6 +146,7 @@ async def _(download_page, gql, vur_url):
                 first: 1000
                 after: $cursor
                 where: {
+                  ajourfoeringDato: {lt: "2026-01-01T00:00:00+01:00"}
                   aar: {eq: $vurderingsaar}
                 }
               ) {
@@ -175,7 +178,7 @@ async def _(download_page, gql, vur_url):
             }    
             """
         )
-    ev_result, ev_table = await download_page(vur_url, _query, {"cursor":None, "vurderingsaar": 2023}, "VUR_Ejendomsvurdering")
+    ev_result, ev_table = await download_page(vur_url, _query, {"cursor":None, "vurderingsaar": 2022}, "VUR_Ejendomsvurdering")
     return (ev_table,)
 
 
