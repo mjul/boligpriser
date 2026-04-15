@@ -161,6 +161,15 @@ Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ej
 
 Dette er selve den vurderede ejendom.
 
+> vurderingsejendommen består af en eller flere BFE (Bestemt Fast Ejendom) som i vurderingsmæssig henseende skal behandles under et
+Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Vurderingsejendom.html
+
+Der er flere forskellige nøglefelter, men der dog ikke altid er udfyldt:
+
+- `vurderingsejendomID` *entydig identifikation for en Vurderingsejendom som den forventes at se ud i det fremtidige Vurderingssystem ICE. Entydig identifikation for en vurderingsejendom, som kan omfatte en eller flere BFE'er (flere ved samvurdering)*
+- `VURejendomsid` *VURs entydige identifikation af en ejendom på vurderingstidspunktet*  
+- (`ESRkommunenummer`, `ESRejendomsnummer`) nøgle til udgåede vurderingsejendomme, der ikke har et BFE-nummer. 
+
 Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
 
 #### BFEKrydsreference
