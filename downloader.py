@@ -621,7 +621,7 @@ async def download_vur_bfekrydsreference(config: DownloaderConfig) -> None:
         }    
         """
     )
-    max_entities = 1_000_000_000  # TODO
+    max_entities = None  # Hent alle
 
     entity = "VUR_BFEKrydsreference"
     log_context = ""
