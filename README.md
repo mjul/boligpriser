@@ -161,14 +161,18 @@ Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ej
 
 Dette er selve den vurderede ejendom.
 
-> vurderingsejendommen består af en eller flere BFE (Bestemt Fast Ejendom) som i vurderingsmæssig henseende skal behandles under et
+> vurderingsejendommen består af en eller flere BFE (Bestemt Fast Ejendom) som i vurderingsmæssig henseende skal
+> behandles under et
+
 Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Vurderingsejendom.html
 
 Der er flere forskellige nøglefelter, men der dog ikke altid er udfyldt:
 
-- `vurderingsejendomID` *entydig identifikation for en Vurderingsejendom som den forventes at se ud i det fremtidige Vurderingssystem ICE. Entydig identifikation for en vurderingsejendom, som kan omfatte en eller flere BFE'er (flere ved samvurdering)*
-- `VURejendomsid` *VURs entydige identifikation af en ejendom på vurderingstidspunktet*  
-- (`ESRkommunenummer`, `ESRejendomsnummer`) nøgle til udgåede vurderingsejendomme, der ikke har et BFE-nummer. 
+- `vurderingsejendomID` *entydig identifikation for en Vurderingsejendom som den forventes at se ud i det fremtidige
+  Vurderingssystem ICE. Entydig identifikation for en vurderingsejendom, som kan omfatte en eller flere BFE'er (flere
+  ved samvurdering)*
+- `VURejendomsid` *VURs entydige identifikation af en ejendom på vurderingstidspunktet*
+- (`ESRkommunenummer`, `ESRejendomsnummer`) nøgle til udgåede vurderingsejendomme, der ikke har et BFE-nummer.
 
 Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
 
@@ -176,12 +180,16 @@ Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
 
 Dette er en relation mellem ejendomsvurderinger og bestemte faste ejendomme (BFE) i BBR.
 
-Der er typisk under 100 vurderinger pr. ejendom, middelværdien er omkring 20 i
-et udtræk på 10 millioner rækker.
+Der er typisk under 100 vurderinger pr. ejendom, middelværdien er omkring 20 vurderinger
+per BFE-nummer (april 2026).
 
 Desværre er vurderingsåret ikke med i relationen til filterbrug (`where`),
 så man bliver nødt til at hente alle data for alle vurderinger fra API'et,
 1000 rækker pr. HTTP-kald.
+
+- `fkEjendomsvurderingID`
+
+Kardinalitet: ca. 50 millioner styk pr. april 2026.
 
 #### Grundvaerdispecifikation
 
@@ -200,6 +208,8 @@ Der er over 30 millioner datapunkter, og kald tager typisk mellem 0,5 til 2 seku
 man være tålmodig.
 
 ### BBR
+
+[Domænemodel: Bygnings- og Boligregisteret, BBR](https://grunddatamodel.datafordeler.dk/objekttypekatalog/Bygninger%20og%20boliger/package-summary.html)
 
 #### Bygning
 
@@ -220,6 +230,17 @@ Denne entitet lader til at benytte Livscyklus statuskoderne.
 ```
 
 For vor anvendelser er kode 7 den interessante.
+
+Ejendomsrelationen udtaler sig om forskellige ejendomstyper, `ejendomstype`, som alle findes under matrikel subdomænet, `MAT`:
+
+```
+    1 - Matrikuleret Areal
+    2 - BPFG
+    3 - Ejerlejlighed
+```
+
+Se kodelisten https://teknik.bbr.dk/kodelister/0/1/0/Ejendomstype
+
 
 #### Kodelister
 
