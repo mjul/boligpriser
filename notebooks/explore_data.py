@@ -246,7 +246,14 @@ def _(mo):
     mo.md(r"""
     Som vi kan se ovenfor er `vurderingsejendomsnummer` ikke udfyldt, så vi kan ikke bruge det til at knytte vurderingerne
     til bygningerne.
+    Det lader dog til at vi kan bruge `bfeNummer`.
     """)
+    return
+
+
+@app.cell
+def _(bbr_bygning_boliger_table, ejendomsrelation_table):
+    bbr_bygning_boliger_table.select(["id_lokalId", "kommunekode", "grund"]).join(ejendomsrelation_table.select(["id_lokalId", "bfeNummer", "ejendomsnummer"]), keys=["id_lokalId"], join_type="left outer")
     return
 
 
@@ -324,7 +331,27 @@ def _(mo):
 
 @app.cell
 def _(pq):
-    raw_bfekryds = pq.read_table("data/vur_bfekrydsreference.parquet")
+    pq.read_schema("data/vur_bfekrydsreference.parquet")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Der er vist over 50 millioner rækker, så vi indlæser kun de nødvendige kolonner:
+    """)
+    return
+
+
+@app.cell
+def _(pq):
+    pq.read_metadata("data/vur_bfekrydsreference.parquet")
+    return
+
+
+@app.cell
+def _(pq):
+    raw_bfekryds = pq.read_table("data/vur_bfekrydsreference.parquet", columns=["BFEnummer", "fkEjendomsvurderingID"])
     print(raw_bfekryds.schema)
     return (raw_bfekryds,)
 
@@ -332,6 +359,14 @@ def _(pq):
 @app.cell
 def _(raw_bfekryds):
     raw_bfekryds.group_by(["BFEnummer"], use_threads=False).aggregate([("BFEnummer", "count")]).sort_by([("BFEnummer_count", "descending")])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Lad os se hvor mange ejendomsvurderinger, der er til hvert BFE-nummer:
+    """)
     return
 
 
@@ -353,13 +388,13 @@ def _(mo):
 def _(pc, raw_ejendomsvurdering):
     _bolig = pc.field("benyttelseKode") == '01' 
     _ejerlejl_bolig = pc.field("benyttelseKode") == '21' 
-    bolig_vurd_uden_bfe = raw_ejendomsvurdering.filter(_bolig | _ejerlejl_bolig).select(["id", "ejendomvaerdiBeloeb", "grundvaerdiBeloeb", "benyttelseKode", "fkVurderingsejendomID"])
+    bolig_vurd_uden_bfe = raw_ejendomsvurdering.filter(_bolig | _ejerlejl_bolig).select(["id", "ejendomvaerdiBeloeb", "grundvaerdiBeloeb", "vurderetAreal", "benyttelseKode", "fkVurderingsejendomID"])
     return (bolig_vurd_uden_bfe,)
 
 
 @app.cell
 def _(bolig_vurd_uden_bfe, raw_bfekryds):
-    bolig_vurd_med_bfe = bolig_vurd_uden_bfe.join(raw_bfekryds, keys=["fkVurderingsejendomID"], right_keys=["fkEjendomsvurderingID"], join_type="inner").select(["id", "ejendomvaerdiBeloeb", "grundvaerdiBeloeb", "benyttelseKode", "fkVurderingsejendomID", "BFEnummer"])
+    bolig_vurd_med_bfe = bolig_vurd_uden_bfe.join(raw_bfekryds, keys=["id"], right_keys=["fkEjendomsvurderingID"], join_type="inner").select(["id", "ejendomvaerdiBeloeb", "grundvaerdiBeloeb", "vurderetAreal", "benyttelseKode", "fkVurderingsejendomID", "BFEnummer"])
     bolig_vurd_med_bfe
     return (bolig_vurd_med_bfe,)
 
@@ -376,9 +411,23 @@ def _(bbr_bygning_boliger_table):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Lad os se hvor mange af disse vurderinger vi kan finde i BBR ejendomsrelationen:
+    """)
+    return
+
+
 @app.cell
-def _(bbr_bygning_boliger_table, bolig_vurd_med_bfe, ejendomsrelation_table):
-    bygning_vurd = bolig_vurd_med_bfe.join(ejendomsrelation_table.drop_columns(["vurderingsejendomsnummer","row_id", "virkningFra", "virkningTil"]), keys=["BFEnummer"], right_keys=["bfeNummer"]).join(bbr_bygning_boliger_table.drop_columns(["byg404Koordinat", "row_id", "virkningFra", "virkningTil", "kommunekode"]).rename_columns({"status": "bbr_status"}), keys=["id_lokalId"], right_keys=["id_lokalId"], join_type="inner")
+def _(bolig_vurd_med_bfe, ejendomsrelation_table):
+    bolig_vurd_med_bfe.join(ejendomsrelation_table.drop_columns(["vurderingsejendomsnummer"]), keys=["BFEnummer"], right_keys=["bfeNummer"], join_type="inner")
+    return
+
+
+@app.cell
+def _(bolig_vurd_med_bfe, ejendomsrelation_table):
+    bygning_vurd = bolig_vurd_med_bfe.join(ejendomsrelation_table.drop_columns(["vurderingsejendomsnummer","row_id", "virkningFra", "virkningTil"]), keys=["BFEnummer"], right_keys=["bfeNummer"], join_type="inner")#.join(bbr_bygning_boliger_table.drop_columns(["byg404Koordinat", "row_id", "virkningFra", "virkningTil", "kommunekode"]).rename_columns({"status": "bbr_status"}), keys=["id_lokalId"], right_keys=["id_lokalId"], join_type="inner")
     bygning_vurd.schema
     return (bygning_vurd,)
 
@@ -427,7 +476,7 @@ def _(ejendomsrelation_table, pc):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
- 
+
     """)
     return
 
