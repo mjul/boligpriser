@@ -481,6 +481,7 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
             first: 1000
             after: $cursor
             where: {
+              ajourfoeringDato: {lt: "2026-01-01T00:00:00+01:00"}
               aar: {eq: $vurderingsaar}
             }
           ) {
@@ -506,6 +507,8 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
                 antalMedvurderedeLejligheder # Antal medvurderede lejligheder i den vurderede ejendom
                 vurderingskredsKode
                 VURMark # Angiver kilde-system og type for vurderingen -- nødvendig for at afgøre om det er den gældende vurdering
+                fkModerejendomID
+                fkVurderetUnderID
                 fkVurderingsejendomID
             }
           }
