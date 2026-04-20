@@ -63,16 +63,18 @@ uv run downloader.py bbr ejendomsrelation
 
 ## Data
 
+### Generelle betragninger om data
+
 Helt generelt er data i Datafordeleren en værre rodebutik.
 
-### Manglende domænemodel
+#### Manglende domænemodel
 
 APIet er lige blevet modernisere, men lader til at have fokuseret på det rent tekniske aspekt at introducere
 GraphQL for alle datakilder. Det lader ikke til, at moderniseringen har været rettet mod at skabe et idiomatisk
 GraphQL-API eller udstiller data i en sammenhængende domænemodel, der skjuler midlertidige implementeringsdetaljer og
 understøtter de almindelige anvendelser på enkel vis.
 
-### GraphQL uden Graph
+#### GraphQL uden Graph
 
 Eksempler på dette er, at Datafordeleren har mange forskellige GraphQL-skemaer i stedet for et enkelt skema med en
 sammenhængende graf. Selv i de enkelte GraphQL-skemaer mangler grafen mellem entiteterne. Man kan sige det er "GraphQL"
@@ -80,6 +82,19 @@ uden "Graph".
 
 Konkret betyder det, at klientapplikationer selv skal lave `join` operationer, enten ved at hente alle data og gøre det
 lokalt, eller over API'et, hvilket giver det velkendte *1+N* problem.
+
+##### Initiativet Fleksibel Opslagslogik vil råde bod på dette
+
+Problemet lader til at være kendt og der lader til at være et igangværende initiativ om at udstille relationerne i
+GraphQL. Pudsigt nok udstilles det i nye separate skemaer i stedet for at sætte dem ind i de eksisterende skemaer, 
+hvor man har brug for relationerne:
+
+https://confluence.sdfi.dk/display/DML/Fleksibel+opslagslogik
+
+Vær endvidere opmærksom på, at der er flere forskellige skemaer for samme data, der er to forskellige
+bitemporalitetsmodeller, som har fået hvert sit skema, se `flexible` og `flexibleCurrent` i ovenstående.
+
+Fleksibel opslagslogik lader ikke til at være færdig, så vi vil ikke bruge det her.
 
 ### Dataindsamling
 
@@ -231,7 +246,8 @@ Denne entitet lader til at benytte Livscyklus statuskoderne.
 
 For vor anvendelser er kode 7 den interessante.
 
-Ejendomsrelationen udtaler sig om forskellige ejendomstyper, `ejendomstype`, som alle findes under matrikel subdomænet, `MAT`:
+Ejendomsrelationen udtaler sig om forskellige ejendomstyper, `ejendomstype`, som alle findes under matrikel subdomænet,
+`MAT`:
 
 ```
     1 - Matrikuleret Areal
@@ -240,7 +256,6 @@ Ejendomsrelationen udtaler sig om forskellige ejendomstyper, `ejendomstype`, som
 ```
 
 Se kodelisten https://teknik.bbr.dk/kodelister/0/1/0/Ejendomstype
-
 
 #### Kodelister
 
