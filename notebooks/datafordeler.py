@@ -174,6 +174,74 @@ def _(er_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### BBR BygningEjendomsrelation
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Der er en lidt mere specialiseret relation mellem bygninger og ejendomsrelation i BBR, lad os kigge på den:
+    """)
+    return
+
+
+@app.cell
+async def _(bbr_url, download_page, gql):
+    _query = gql(
+        """
+        query GetBBRBygningEjendomsrelation($cursor: String, $kommunekode: String!) {
+          BBR_BygningEjendomsrelation(
+            virkningstid: "2026-01-01T00:00:00+01:00"
+            first: 1000
+            after: $cursor
+            where: {
+              kommunekode: {eq: $kommunekode}
+              #status: { eq: "7" } #  7: Gældende
+            }
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                id_lokalId
+                kommunekode
+                bygning # 
+                bygningPaaFremmedGrund #
+                forretningshaendelse
+                forretningsomraade
+                status # kode for bygværkselementets status i den pågældende version, dvs. elementets tilstand i den samlede livscyklus 
+                virkningFra # tidspunktet hvor virkningen af den pågældende version af bygværkselementet er startet
+                virkningTil # tidspunktet hvor virkningen af den pågældende version af bygværkselementet ophører
+            }
+          }
+        }    
+        """
+    )
+
+    ber_result, ber_table = await download_page(bbr_url, _query, {"cursor":None, "kommunekode": "0825"}, "BBR_BygningEjendomsrelation")
+    return (ber_table,)
+
+
+@app.cell
+def _(ber_table):
+    ber_table
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Det ser ikke ud til, at vi kan bruge dette til så meget.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## VUR
     """)
     return
