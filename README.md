@@ -10,6 +10,8 @@ Kort over priserne på på villaer og ejerlejligheder i Danmark.
 - `explorer.py` - analyse og kort over data.
 - `data/` - Parquet-filer med de data vi har hentet fra Datafordeleren.
 - `notebooks/` - Marimo eksperimenter med API, data og visualisering.
+  - `datafordeler.py` - eksperimenter med GraphQL-queries mod Datafordeleren. API-nøgle påkrævet. 
+  - `explore_data.py` - udforske data i `data` folderens Parquet-file. 
 - `schemas/` - GraphQL-skemaer fra Datafordeleren.
 
 ## Datakilder
@@ -188,6 +190,8 @@ Der er flere forskellige nøglefelter, men der dog ikke altid er udfyldt:
   ved samvurdering)*
 - `VURejendomsid` *VURs entydige identifikation af en ejendom på vurderingstidspunktet*
 - (`ESRkommunenummer`, `ESRejendomsnummer`) nøgle til udgåede vurderingsejendomme, der ikke har et BFE-nummer.
+
+Så vidt jeg kan forstå er BFE-nummeret de nøgle, der skal benyttes i fremtiden, dog er det ikke 
 
 Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
 
