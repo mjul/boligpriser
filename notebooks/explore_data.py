@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.0"
+__generated_with = "0.23.1"
 app = marimo.App(
     width="medium",
     layout_file="layouts/explore_data.slides.json",
@@ -62,7 +62,7 @@ def _(mo):
 
 @app.cell
 def _(bbr_bygning_raw_table, pa):
-    def kun_nyeste_virkningsid(t: pa.Table) -> pa.Table:
+    def kun_nyeste_virkningstid(t: pa.Table) -> pa.Table:
         _with_ids = t.append_column("row_id", pa.array(range(t.num_rows), type=pa.int64()))
 
         _latest_row_ids = _with_ids.sort_by([("virkningFra", "ascending")]).group_by("id_lokalId", use_threads=False).aggregate([("row_id", "last"), ("virkningFra", "last")])["row_id_last"]
@@ -70,8 +70,8 @@ def _(bbr_bygning_raw_table, pa):
         _table = _with_ids.take(_latest_row_ids).sort_by("id_lokalId")
         return _table
 
-    bbr_bygning_alle_table = kun_nyeste_virkningsid(bbr_bygning_raw_table)
-    return bbr_bygning_alle_table, kun_nyeste_virkningsid
+    bbr_bygning_alle_table = kun_nyeste_virkningstid(bbr_bygning_raw_table)
+    return bbr_bygning_alle_table, kun_nyeste_virkningstid
 
 
 @app.cell(hide_code=True)
@@ -230,8 +230,8 @@ def _(pq):
 
 
 @app.cell
-def _(kun_nyeste_virkningsid, raw_ejendomsrelation):
-    ejendomsrelation_table = kun_nyeste_virkningsid(raw_ejendomsrelation)
+def _(kun_nyeste_virkningstid, raw_ejendomsrelation):
+    ejendomsrelation_table = kun_nyeste_virkningstid(raw_ejendomsrelation)
     return (ejendomsrelation_table,)
 
 
