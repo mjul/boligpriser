@@ -33,7 +33,15 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## BBR Bygning
+    ## BBR
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### BBR Bygning
     Vi modtager placeringer i EPSG 25832 koordinater fra BBR.
     """)
     return
@@ -77,7 +85,7 @@ def _(bbr_bygning_raw_table, pa):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Bygningernes anvendelser
+    #### Bygningernes anvendelser
     """)
     return
 
@@ -111,7 +119,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Bygningernes beliggenhed
+    #### Bygningernes beliggenhed
     """)
     return
 
@@ -215,7 +223,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## BBR Ejendomsrelation
+    ### BBR Ejendomsrelation
 
     Her kan vi se bygningens BFE-nummer. Dette er nøglen til at koble det til vurderingerne.
     """)
@@ -260,7 +268,15 @@ def _(bbr_bygning_boliger_table, ejendomsrelation_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## VUR Vurderingsejendom
+    ## VUR
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### VUR Vurderingsejendom
     Vi kan i stedet forsøge os med vurderingsejendommene, objektet for ejendomsvurderingerne.
     """)
     return
@@ -286,7 +302,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## VUR Ejendomsvurdering
+    ### VUR Ejendomsvurdering
     """)
     return
 
@@ -323,7 +339,7 @@ def _(raw_ejendomsvurdering):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## VUR BFE krydsreference
+    ### VUR BFE krydsreference
     Her er endelig en nøgle til at krydse de forskellige datasæt:
     """)
     return
@@ -379,7 +395,39 @@ def _(pc, raw_bfekryds):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    ### VUR Grundværdispecifikationer
+    """)
+    return
+
+
+@app.cell
+def _(pq):
+    gvspec_table = pq.read_table("data/vur_grundvaerdispecifikation.parquet")
+    return (gvspec_table,)
+
+
+@app.cell
+def _(bolig_vurd_med_bfe, gvspec_table):
+    print(gvspec_table.schema)
+    print()
+    print(bolig_vurd_med_bfe.schema)
+    return
+
+
+@app.cell
+def _(bolig_vurd_med_bfe, gvspec_table):
+    bolig_vurd_med_bfe.join(gvspec_table, keys=["fkVurderingsejendomID"], right_keys=["fkEjendomsvurderingID"], join_type="inner")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## Vurderinger med placeringer
+
+    Lad os prøve om vi kan finde placeringerne og så vi kan vise vurderingerne på et kort.
+
+    For at komme i gang begrænser vi os til de nemmeste huse og lejligheder.
     """)
     return
 
@@ -390,6 +438,15 @@ def _(pc, raw_ejendomsvurdering):
     _ejerlejl_bolig = pc.field("benyttelseKode") == '21' 
     bolig_vurd_uden_bfe = raw_ejendomsvurdering.filter(_bolig | _ejerlejl_bolig).select(["id", "ejendomvaerdiBeloeb", "grundvaerdiBeloeb", "vurderetAreal", "benyttelseKode", "fkVurderingsejendomID"])
     return (bolig_vurd_uden_bfe,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### VUR Ejendomsvurdering -> BFE-nummer -> BBR Bygning
+    #### Find BFE for VUR Ejendomsvurdering (villaer og ejerlejligheder)
+    """)
+    return
 
 
 @app.cell
@@ -414,7 +471,7 @@ def _(bbr_bygning_boliger_table):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Lad os se hvor mange af disse vurderinger vi kan finde i BBR ejendomsrelationen:
+    Lad os se hvor mange af disse vurderinger vi kan finde i BBR ejendomsrelationen. Vi anvender BFE-nummer som nøgle mellem de to datasæt, da det er fremtidens nøgle. Den er bare ikke universelt taget i brug endnu:
     """)
     return
 
@@ -425,16 +482,34 @@ def _(bolig_vurd_med_bfe, ejendomsrelation_table):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    På tværs af hele bestanden af boliger er det ganske få i betragtning af, at vi arbejder på hele bestanden af vurderinger  for villaer og lejligheder.
+
+    De fundne data har alle ejendomstype `1`, *Matrikuleret Areal*, og benyttelsesKode `01`, *Beboelse* (se [kodeliste](https://confluence.sdfi.dk/pages/viewpage.action?pageId=82346523)).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    OK lad os prøve at køre det helt igennem
+    """)
+    return
+
+
 @app.cell
 def _(bolig_vurd_med_bfe, ejendomsrelation_table):
-    bygning_vurd = bolig_vurd_med_bfe.join(ejendomsrelation_table.drop_columns(["vurderingsejendomsnummer","row_id", "virkningFra", "virkningTil"]), keys=["BFEnummer"], right_keys=["bfeNummer"], join_type="inner")#.join(bbr_bygning_boliger_table.drop_columns(["byg404Koordinat", "row_id", "virkningFra", "virkningTil", "kommunekode"]).rename_columns({"status": "bbr_status"}), keys=["id_lokalId"], right_keys=["id_lokalId"], join_type="inner")
-    bygning_vurd.schema
-    return (bygning_vurd,)
+    bygning_vurd_via_bfe = bolig_vurd_med_bfe.join(ejendomsrelation_table.drop_columns(["vurderingsejendomsnummer","row_id", "virkningFra", "virkningTil"]), keys=["BFEnummer"], right_keys=["bfeNummer"], join_type="inner")#.join(bbr_bygning_boliger_table.drop_columns(["byg404Koordinat", "row_id", "virkningFra", "virkningTil", "kommunekode"]).rename_columns({"status": "bbr_status"}), keys=["id_lokalId"], right_keys=["id_lokalId"], join_type="inner")
+    print(bygning_vurd_via_bfe.schema)
+    return (bygning_vurd_via_bfe,)
 
 
 @app.cell
-def _(bygning_vurd):
-    bygning_vurd
+def _(bygning_vurd_via_bfe):
+    bygning_vurd_via_bfe
     return
 
 
@@ -476,36 +551,9 @@ def _(ejendomsrelation_table, pc):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-
+    ### Ejendomsvurdering -> Vurderingsejendom -> BBR Ejendomsrelation -> BBR Bygning
+    Lad os prøve at gå via Vurderingsejendom de gamle ESR kommunekoder og bygningsnumre.
     """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## VUR Grundværdispecifikationer
-    """)
-    return
-
-
-@app.cell
-def _(pq):
-    gvspec_table = pq.read_table("data/vur_grundvaerdispecifikation.parquet")
-    return (gvspec_table,)
-
-
-@app.cell
-def _(bolig_vurd_med_bfe, gvspec_table):
-    print(gvspec_table.schema)
-    print()
-    print(bolig_vurd_med_bfe.schema)
-    return
-
-
-@app.cell
-def _(bolig_vurd_med_bfe, gvspec_table):
-    bolig_vurd_med_bfe.join(gvspec_table, keys=["fkVurderingsejendomID"], right_keys=["fkEjendomsvurderingID"], join_type="inner")
     return
 
 
