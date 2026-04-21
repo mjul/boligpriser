@@ -288,7 +288,7 @@ def _(pq):
     print(raw_vurderingsejendom.schema)
     print()
     print("Antal vurderingsejendomme: ", raw_vurderingsejendom.shape[0])
-    return
+    return (raw_vurderingsejendom,)
 
 
 @app.cell(hide_code=True)
@@ -553,6 +553,103 @@ def _(mo):
     mo.md(r"""
     ### Ejendomsvurdering -> Vurderingsejendom -> BBR Ejendomsrelation -> BBR Bygning
     Lad os prøve at gå via Vurderingsejendom de gamle ESR kommunekoder og bygningsnumre.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    #### Ejendomsvurdering -> Vurderingsejendom via `fkVurderingsejendomID` `=` `vurderingsejendomID`
+    """)
+    return
+
+
+@app.cell
+def _(bolig_vurd_uden_bfe):
+    bolig_vurd_uden_bfe.schema
+    return
+
+
+@app.cell
+def _(raw_vurderingsejendom):
+    raw_vurderingsejendom.schema
+    return
+
+
+@app.cell
+def _(bolig_vurd_uden_bfe, raw_vurderingsejendom):
+    bolig_vurd_uden_bfe.join(raw_vurderingsejendom, keys=["fkVurderingsejendomID"], right_keys=["vurderingsejendomID"], join_type="inner")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Pudsigt nok er der ingen resultater.
+    """)
+    return
+
+
+@app.cell
+def _(pc, raw_vurderingsejendom):
+    print("Antal vurderingsejendomme:", raw_vurderingsejendom.shape[0])
+    pc.unique(raw_vurderingsejendom.column("vurderingsejendomID")).sort()
+    return
+
+
+@app.cell
+def _(pc, raw_ejendomsvurdering):
+    print("Antal ejendomsvurderinger:", raw_ejendomsvurdering.shape[0])
+    pc.unique(raw_ejendomsvurdering.column("fkVurderingsejendomID")).sort()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Der er ganske rigtigt ikke noget overlap
+    """)
+    return
+
+
+@app.cell
+def _(pc, raw_vurderingsejendom):
+    pc.unique(raw_vurderingsejendom.column("VURejendomsid")).sort()
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Til gengæld ligner de her mere hinanden. Lad os prøve det.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    #### Ejendomsvurdering -> Vurderingsejendom via `fkVurderingsejendomID` `=` `VURejendomsid`
+    """)
+    return
+
+
+@app.cell
+def _(bolig_vurd_uden_bfe, raw_vurderingsejendom):
+    bolig_vurd_uden_bfe.join(raw_vurderingsejendom, keys=["fkVurderingsejendomID"], right_keys=["VURejendomsid"], join_type="inner")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Det lader trods den forvirrende navngivning til at passe bedre sammen.
+
+    [Dokumentationen til Vurderingsejendom](https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Vurderingsejendom.html) har en slags forklaring på dette:
+
+    - `vurderingsejendomID` er *entydig identifikation for en Vurderingsejendom som den forventes at se ud i det fremtidige Vurderingssystem ICE*
+    - `VURejendomsid` er *VUR’s entydige identifikation af en ejendom på vurderingstidspunktet*
     """)
     return
 

@@ -191,7 +191,11 @@ Der er flere forskellige nøglefelter, men der dog ikke altid er udfyldt:
 - `VURejendomsid` *VURs entydige identifikation af en ejendom på vurderingstidspunktet*
 - (`ESRkommunenummer`, `ESRejendomsnummer`) nøgle til udgåede vurderingsejendomme, der ikke har et BFE-nummer.
 
-Så vidt jeg kan forstå er BFE-nummeret de nøgle, der skal benyttes i fremtiden, dog er det ikke 
+Så vidt jeg kan forstå er BFE-nummeret de nøgle, der skal benyttes i fremtiden. 
+
+`VURejendomsid` er dog udfyldt for de fleste vurderingsejendomme, `vurderingsejendomID` er også. 
+Bemærk dog, at relationen tilbage til `Ejendomsvurdering` går via `VURejendomsid` til dennes fkVurderingsejendomID`
+og ikke via `vurderingsejendomID` som navngivningen lægger op til.
 
 Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
 
