@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.23.2"
 app = marimo.App(
     width="medium",
     layout_file="layouts/explore_data.slides.json",
@@ -637,8 +637,9 @@ def _(mo):
 
 @app.cell
 def _(bolig_vurd_uden_bfe, raw_vurderingsejendom):
-    bolig_vurd_uden_bfe.join(raw_vurderingsejendom, keys=["fkVurderingsejendomID"], right_keys=["VURejendomsid"], join_type="inner")
-    return
+    bolig_vurd_med_vurd_ejd = bolig_vurd_uden_bfe.join(raw_vurderingsejendom, keys=["fkVurderingsejendomID"], right_keys=["VURejendomsid"], join_type="inner")
+    bolig_vurd_med_vurd_ejd 
+    return (bolig_vurd_med_vurd_ejd,)
 
 
 @app.cell(hide_code=True)
@@ -650,6 +651,61 @@ def _(mo):
 
     - `vurderingsejendomID` er *entydig identifikation for en Vurderingsejendom som den forventes at se ud i det fremtidige Vurderingssystem ICE*
     - `VURejendomsid` er *VUR’s entydige identifikation af en ejendom på vurderingstidspunktet*
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Vi kan overbevise os om, at de manglende ca. 100.000 vurderinger skyldes at vi kun kigger på villaer og lejligheder:
+    """)
+    return
+
+
+@app.cell
+def _(raw_ejendomsvurdering, raw_vurderingsejendom):
+    raw_ejendomsvurdering.select(["id", "fkVurderingsejendomID"]).join(raw_vurderingsejendom, keys=["fkVurderingsejendomID"], right_keys=["VURejendomsid"], join_type="inner").shape
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Nu har vi således mulighed for at få ESR kommunekode og ejendomsnumre for alle vurderingerne.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    #### Ejendomsvurdering -> Vurderingsejendom -> BBR Ejendomsrelation
+    """)
+    return
+
+
+@app.cell
+def _(bolig_vurd_med_vurd_ejd, ejendomsrelation_table):
+    print(bolig_vurd_med_vurd_ejd.schema)
+    print()
+    print(ejendomsrelation_table.schema)
+    return
+
+
+@app.cell
+def _(bolig_vurd_med_vurd_ejd, ejendomsrelation_table, pa, pc):
+    # Vi skal lige konvertere kommunekoden
+    _er = ejendomsrelation_table.drop("kommunekode").append_column("kommunekode", pc.cast(ejendomsrelation_table.column("kommunekode"), pa.int64()))
+
+    bolig_vurd_med_vurd_ejd.join(_er.drop_columns(["vurderingsejendomsnummer"]), keys=["ESRkommunenummer", "ESRejendomsnummer"], right_keys=["kommunekode","ejendomsnummer"], join_type="inner")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Nu er vi tilbage samme sted som `bygning_vurd_via_bfe` ovenfor.
     """)
     return
 
