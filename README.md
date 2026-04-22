@@ -1,8 +1,12 @@
 # Boligpriser
 
-(*en.* Map the house prices in Denmark using public data.)
+(*en.* Map the housing price distributions in Denmark using public data.)
 
-Kort over priserne på på villaer og ejerlejligheder i Danmark.
+- *Hvor langt skal man væk fra bymidten for at have råd til en bolig?*
+- *Hvor stor skal byen være for at folk har råd til at bo der?*
+
+Kort over fordelingen af priserne på villaer og ejerlejligheder i Danmark.
+Data hentes fra "Klimadatastyrelsen", se [Datafordeleren](https://datafordeler.dk).
 
 ## Struktur
 
@@ -10,8 +14,8 @@ Kort over priserne på på villaer og ejerlejligheder i Danmark.
 - `explorer.py` - analyse og kort over data.
 - `data/` - Parquet-filer med de data vi har hentet fra Datafordeleren.
 - `notebooks/` - Marimo eksperimenter med API, data og visualisering.
-  - `datafordeler.py` - eksperimenter med GraphQL-queries mod Datafordeleren. API-nøgle påkrævet. 
-  - `explore_data.py` - udforske data i `data` folderens Parquet-file. 
+    - `datafordeler.py` - eksperimenter med GraphQL-queries mod Datafordeleren. API-nøgle påkrævet.
+    - `explore_data.py` - udforske data i `data` folderens Parquet-file.
 - `schemas/` - GraphQL-skemaer fra Datafordeleren.
 
 ## Datakilder
@@ -61,7 +65,7 @@ uv run ty check
 ## Teknologier
 
 - `uv` bestyrer Python versioner og miljøer
-- `ty` type checker 
+- `ty` type checker
 - `marimo` notebooks til eksperimenter
 
 - `gql` GraphQL klient til indlæsning af data fra http://www.datafordeler.dk
@@ -95,7 +99,7 @@ lokalt, eller over API'et, hvilket giver det velkendte *1+N* problem.
 ##### Initiativet Fleksibel Opslagslogik vil råde bod på dette
 
 Problemet lader til at være kendt og der lader til at være et igangværende initiativ om at udstille relationerne i
-GraphQL. Pudsigt nok udstilles det i nye separate skemaer i stedet for at sætte dem ind i de eksisterende skemaer, 
+GraphQL. Pudsigt nok udstilles det i nye separate skemaer i stedet for at sætte dem ind i de eksisterende skemaer,
 hvor man har brug for relationerne:
 
 https://confluence.sdfi.dk/display/DML/Fleksibel+opslagslogik
@@ -198,9 +202,9 @@ Der er flere forskellige nøglefelter, men der dog ikke altid er udfyldt:
 - `VURejendomsid` *VURs entydige identifikation af en ejendom på vurderingstidspunktet*
 - (`ESRkommunenummer`, `ESRejendomsnummer`) nøgle til udgåede vurderingsejendomme, der ikke har et BFE-nummer.
 
-Så vidt jeg kan forstå er BFE-nummeret de nøgle, der skal benyttes i fremtiden. 
+Så vidt jeg kan forstå er BFE-nummeret de nøgle, der skal benyttes i fremtiden.
 
-`VURejendomsid` er dog udfyldt for de fleste vurderingsejendomme, `vurderingsejendomID` er også. 
+`VURejendomsid` er dog udfyldt for de fleste vurderingsejendomme, `vurderingsejendomID` er også.
 Bemærk dog, at relationen tilbage til `Ejendomsvurdering` går via `VURejendomsid` til dennes fkVurderingsejendomID`
 og ikke via `vurderingsejendomID` som navngivningen lægger op til.
 
