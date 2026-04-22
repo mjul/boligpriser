@@ -163,6 +163,9 @@ med 2022-sagerne, for 2024-sagerne er der kun udsendt omkring 380.000:
 
 https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
 
+I kontrast til ovenstående er der interessant nok kun ca. 608.000 ejendomsvurderinger i databasen for 2022.
+2024-vurderingerne er der slet ikke.
+
 #### Kodelisterne er ikke på første normalform
 
 Man skal sætte sig ind i en række kodelister for at bruge systemet, f.eks.:
@@ -184,6 +187,8 @@ Ejendomme har forskellige anvendelser, vi kigger kun på de mest enkle, `benytte
 - `21` Ejerlejlighed, beboelse
 
 Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html#_A22606_62910
+
+Kardinalitet: ca. 608.000 ejendomsvurderinger for 2022.
 
 #### Vurderingsejendom
 
