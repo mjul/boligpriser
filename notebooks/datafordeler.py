@@ -403,7 +403,7 @@ def _(gvspec_table):
 def _(mo):
     mo.md(r"""
     ## Matrikler
-    ### Ejerlejlighed
+    ### MAT Ejerlejlighed
     """)
     return
 
@@ -462,7 +462,7 @@ def _():
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ### Samlet Fast Ejendom
+    ### MAT Samlet Fast Ejendom
     MAT_Ejerlejlighed mangler geometrien, men der er en reference til MAT_SamletFastEjendom. Lad os se på den:
     """)
     return
