@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.1"
+__generated_with = "0.23.2"
 app = marimo.App()
 
 
@@ -24,10 +24,12 @@ def _():
     import geoarrow.pyarrow.io as gaio
     import geopandas as gpd
     import numpy as np
+    import pyproj
+    import shapely
     from gql import Client, GraphQLRequest, gql
     from gql.transport.aiohttp import AIOHTTPTransport
 
-    return AIOHTTPTransport, Client, gql, mo, os, pa, pc
+    return AIOHTTPTransport, Client, gpd, gql, mo, os, pa, pc
 
 
 @app.cell
@@ -401,7 +403,7 @@ def _(gvspec_table):
 def _(mo):
     mo.md(r"""
     ## Matrikler
-    ### Ejerjlighed
+    ### Ejerlejlighed
     """)
     return
 
@@ -453,9 +455,15 @@ def _(ejl_table):
 
 
 @app.cell(hide_code=True)
+def _():
+    return
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    MAT_Ejerlejlighed mangler geomterien, men der er en reference til MAT_SamletFastEjendom. Lad os se på den:
+    ### Samlet Fast Ejendom
+    MAT_Ejerlejlighed mangler geometrien, men der er en reference til MAT_SamletFastEjendom. Lad os se på den:
     """)
     return
 
@@ -510,6 +518,28 @@ def _(mo):
     mo.md(r"""
     Samlet Fast Ejendom har hele geometrien (multi-polygon), vi ønsker os blot centerpunktet.
     """)
+    return
+
+
+@app.cell
+def _(gpd, pc, sfe_table):
+    _wkt_array = pc.struct_field(sfe_table['geometri'], 'wkt')  # Extract wkt child
+    _crs_array = pc.struct_field(sfe_table['geometri'], 'crs')  # Extract crs child
+    _crs_code = 25832  # Fixed 25832
+
+    _wkt_series = _wkt_array.to_pandas()
+    _gs = gpd.GeoSeries.from_wkt(_wkt_series)
+    _gs.crs = "EPSG:25832"  # From your crs field
+    _centroids = _gs.centroid.to_arrow()  # Back to GeoArrow WKB
+
+    sfe_med_geo = sfe_table.drop_columns(["geometri"]).append_column("geometry", _centroids)
+    print(sfe_med_geo.schema)
+    sfe_med_geo
+    return
+
+
+@app.cell
+def _():
     return
 
 
