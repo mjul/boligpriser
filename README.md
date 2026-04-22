@@ -52,9 +52,16 @@ uv run downloader.py bbr bygning
 uv run downloader.py bbr ejendomsrelation
 ```
 
+Kør type checker:
+
+```
+uv run ty check
+```
+
 ## Teknologier
 
 - `uv` bestyrer Python versioner og miljøer
+- `ty` type checker 
 - `marimo` notebooks til eksperimenter
 
 - `gql` GraphQL klient til indlæsning af data fra http://www.datafordeler.dk
