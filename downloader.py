@@ -41,6 +41,7 @@ class DownloaderConfig:
     out_dir: Path = Path("data")
     datafordeler_graphql_url: str = "https://graphql.datafordeler.dk"
     bbr_path: str = "/BBR/v1"
+    mat_path: str = "/MAT/v1"
     vur_path: str = "/VUR/v2"
     vurderingsaar: int = 2022  # dette år har flest data, se https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
     datafordeler_api_key: str | None = None
@@ -60,39 +61,47 @@ class DownloaderConfig:
         """Get the URL for the BBR GraphQL endpoint, including the API key."""
         return f"{self.datafordeler_graphql_url}{self.bbr_path}?apikey={self.datafordeler_api_key}"
 
-    def bbr_bygning_file(self):
+    def bbr_bygning_file(self) -> Path:
         """Get the path to the BBR Bygning Parquet file."""
         return self.out_dir / "bbr_bygning.parquet"
 
-    def bbr_bygning_kommune_file(self, kommunekode: str):
+    def bbr_bygning_kommune_file(self, kommunekode: str) -> Path:
         """Get the path to the BBR Bygning Parquet file."""
         return self.out_dir / f"bbr_bygning-{kommunekode}.parquet"
 
-    def bbr_ejendomsrelation_file(self):
+    def bbr_ejendomsrelation_file(self) -> Path:
         """Get the path to the BBR Ejendomsrelation Parquet file."""
         return self.out_dir / "bbr_ejendomsrelation.parquet"
 
-    def bbr_ejendomsrelation_kommune_file(self, kommunekode: str):
+    def bbr_ejendomsrelation_kommune_file(self, kommunekode: str) -> Path:
         """Get the path to the BBR Ejendomsrelation Parquet file."""
         return self.out_dir / f"bbr_ejendomsrelation-{kommunekode}.parquet"
+
+    def mat_url(self):
+        """Get the URL for the MAT GraphQL endpoint, including the API key."""
+        return f"{self.datafordeler_graphql_url}{self.mat_path}?apikey={self.datafordeler_api_key}"
+
+    def mat_samletfastejendom_file(self) -> Path:
+        """Get the path to the MAT Samlet Fast Ejendom Parquet file."""
+        return self.out_dir / f"mat_samletfastejendom.parquet"
 
     def vur_url(self):
         """Get the URL for the VUR GraphQL endpoint, including the API key."""
         return f"{self.datafordeler_graphql_url}{self.vur_path}?apikey={self.datafordeler_api_key}"
 
-    def vur_ejendomsvurdering_file(self):
+    def vur_ejendomsvurdering_file(self) -> Path:
         """Get the path to the VUR Ejendomsvurdering Parquet file."""
         return self.out_dir / "vur_ejendomsvurdering.parquet"
 
-    def vur_vurderingsejendom_file(self):
+    def vur_vurderingsejendom_file(self) -> Path:
         """Get the path to the VUR Vurderingsejendom Parquet file."""
         return self.out_dir / "vur_vurderingsejendom.parquet"
 
-    def vur_bfekrydsreference_file(self):
+    def vur_bfekrydsreference_file(self) -> Path:
         """Get the path to the VUR BFE Krydsreference Parquet file."""
         return self.out_dir / "vur_bfekrydsreference.parquet"
 
-    def vur_grundvaerdispecifikation_file(self):
+    def vur_grundvaerdispecifikation_file(self) -> Path:
         """Get the path to the VUR Grundvaerdispecifikation Parquet file."""
         return self.out_dir / "vur_grundvaerdispecifikation.parquet"
 
@@ -469,6 +478,74 @@ async def download_bbr_ejendomsrelation_kommune(
     )
 
 
+async def download_mat_samletfastejendom(config: DownloaderConfig) -> None:
+    max_entities = None  # Hent alle
+    output_file = config.mat_samletfastejendom_file()
+    log_context = ""
+
+    url_with_key = config.mat_url()
+
+    query = gql(
+        """
+        query GetMAT_SamletFastEjendom($cursor: String) {
+          MAT_SamletFastEjendom(
+            first: 1000
+            after: $cursor
+            registreringstid: "2026-01-01T00:00:00+01:00"
+            virkningstid: "2026-01-01T00:00:00+01:00"
+            where: {
+              status: {
+                eq: "Gældende" # status 7: Gældende
+              }
+            }
+          ) {
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+                BFEnummer
+                datafordelerRowId
+                datafordelerRowVersion
+                datafordelerOpdateringstid
+                geometri { type crs dimension wkt } # objektets geografiske placering, CRS: EPSG:25832
+                id_lokalId
+                status # angivelse af hvor et forretningsobjekt er i sin livscyklus
+                virkningFra
+                virkningTil
+            }
+          }
+        }    
+        """
+    )
+    entity = "MAT_SamletFastEjendom"
+    logger.info(
+        "Downloading MAT Samlet Fast Ejendom data...",
+        extra={"entity": entity, "context": log_context},
+    )
+
+    def parse_timestamps(t: pa.Table) -> pa.Table:
+        vf_col = pc.cast(t["virkningFra"], pa.timestamp("us", tz="UTC"))
+        vt_col = pc.cast(t["virkningTil"], pa.timestamp("us", tz="UTC"))
+        t = t.set_column(t.schema.get_field_index("virkningFra"), "virkningFra", vf_col)
+        t = t.set_column(t.schema.get_field_index("virkningTil"), "virkningTil", vt_col)
+        return t
+
+    # TODO: parse geo
+
+    _result = await download_to_parquet(
+        url_with_key,
+        query,
+        entity,
+        log_context,
+        {},
+        output_file,
+        schema=None,
+        transform_table=parse_timestamps,
+        max_entities=max_entities,
+    )
+
+
 async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
     url_with_key = config.vur_url()
     output_file = config.vur_ejendomsvurdering_file()
@@ -529,7 +606,9 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
         )
         # Simple conversion (not using '...kode' as key)
         jk_col = t.column("juridiskKategoriTekst").combine_chunks().dictionary_encode()
-        ju_col = t.column("juridiskUnderkategoriTekst").combine_chunks().dictionary_encode()
+        ju_col = (
+            t.column("juridiskUnderkategoriTekst").combine_chunks().dictionary_encode()
+        )
         t = t.set_column(
             t.schema.get_field_index("juridiskKategoriTekst"),
             "juridiskKategoriTekst",
@@ -699,6 +778,8 @@ def cli_parser() -> argparse.ArgumentParser:
     _ = bbr_sub.add_argument(
         "tabeller", nargs="*", choices=["bygning", "ejendomsrelation"]
     )
+    mat_sub = sub.add_parser("mat", help="Download MAT data to Parquet/GeoParquet")
+    _ = mat_sub.add_argument("tabeller", nargs="*", choices=["samletfastejendom"])
     vur_sub = sub.add_parser("vur", help="Download VUR data to Parquet/GeoParquet")
     _ = vur_sub.add_argument(
         "tabeller",
@@ -719,6 +800,9 @@ async def download(config, args):
             await download_bbr_bygning(config)
         if "ejendomsrelation" in args.tabeller:
             await download_bbr_ejendomsrelation(config)
+    elif args.command == "mat":
+        if "samletfastejendom" in args.tabeller:
+            await download_mat_samletfastejendom(config)
     elif args.command == "vur":
         if "ejendomsvurdering" in args.tabeller:
             await download_vur_ejendomsvurdering(config)

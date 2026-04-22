@@ -18,10 +18,11 @@ Data hentes fra "Klimadatastyrelsen", se [Datafordeleren](https://datafordeler.d
     - `explore_data.py` - udforske data i `data` folderens Parquet-file.
 - `schemas/` - GraphQL-skemaer fra Datafordeleren.
 
-## Datakilder
+## Datakilder og dokumentattion
 
 - [Datafordeleren](https://datafordeler.dk)
--
+    - [Objekttypekatalog](https://grunddatamodel.datafordeler.dk/objekttypekatalog/)
+    -
 
 ## Installation
 
@@ -54,6 +55,12 @@ Hent data fra BBR:
 ```
 uv run downloader.py bbr bygning
 uv run downloader.py bbr ejendomsrelation
+```
+
+Hent data fra MAT:
+
+```
+uv run downloader.py mat samletfastejendom
 ```
 
 Kør type checker:
@@ -310,8 +317,15 @@ For enkelthedens skyld nøjes vi således med at læse *Samlet Fast Ejendom* og 
 #### Ejerlejlighed
 
 Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for
-det samme (7 - Gældende).
+det samme element i kodelisten (7 - Gældende).
 
-#### Samlet fast ejendom
+#### Samlet fast ejendom (SFE)
+
+Entiteten har BFE-nummer som alternativ nøgle, så den er nem at navigere til.
+
+Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for
+det samme (7 - Gældende). Igen en uortodoks brug af kodelisten.
 
 Man kan navigere til denne fra Ejerlejlighed, den har `geometri` som er en multi-polygon.
+
+Kardinalitet: ca. 2,2 millioner styk pr. april 2026.
