@@ -295,20 +295,20 @@ def _(gpd, pc, raw_samletfastejendom):
     _gs.crs = "EPSG:25832"
     _centroids = _gs.centroid.to_arrow()  # Back to GeoArrow WKB
 
-    sfe_med_geo = raw_samletfastejendom.drop_columns(["geometri"]).append_column("geometry", _centroids)
-    return (sfe_med_geo,)
+    mat_sfe_med_geo = raw_samletfastejendom.drop_columns(["geometri"]).append_column("geometry", _centroids)
+    return (mat_sfe_med_geo,)
 
 
 @app.cell
-def _(sfe_med_geo):
-    print(sfe_med_geo.schema)
+def _(mat_sfe_med_geo):
+    print(mat_sfe_med_geo.schema)
     return
 
 
 @app.cell
-def _(crs_array, gpd, sfe_med_geo):
+def _(crs_array, gpd, mat_sfe_med_geo):
     _epsg_code = crs_array.drop_null()[0].as_py()  # take first non-null value
-    sfe_gdf = gpd.GeoDataFrame.from_arrow(sfe_med_geo, geometry="geometry")
+    sfe_gdf = gpd.GeoDataFrame.from_arrow(mat_sfe_med_geo, geometry="geometry")
     return (sfe_gdf,)
 
 
@@ -786,6 +786,39 @@ def _(mo):
 
     SFE har geometri-data, så hvis vi kan knytte en vurdering til den tilhørende SFE kan vi placere den på kortet.
     """)
+    return
+
+
+@app.cell
+def _(bolig_vurd_med_bfe, mat_sfe_med_geo):
+    bolig_vurd_med_geo = bolig_vurd_med_bfe.join(mat_sfe_med_geo.select(["BFEnummer", "geometry"]), keys=["BFEnummer"], right_keys=["BFEnummer"], join_type="inner")
+    print(bolig_vurd_med_geo.schema)
+    return (bolig_vurd_med_geo,)
+
+
+@app.cell
+def _(bolig_vurd_med_geo, pc):
+    _gv_pr_kvm = pc.divide(bolig_vurd_med_geo["grundvaerdiBeloeb"], bolig_vurd_med_geo["vurderetAreal"])
+    vurd_gv_kvm_table = bolig_vurd_med_geo.append_column("grundvaerdi_pr_kvm", _gv_pr_kvm)
+    vurd_gv_kvm_table
+    return (vurd_gv_kvm_table,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    #### Kort over grundværdier pr. kvm.
+    """)
+    return
+
+
+@app.cell
+def _(Map, gpd, vurd_gv_kvm_table):
+    import lonboard
+
+    _gdf = gpd.GeoDataFrame.from_arrow(vurd_gv_kvm_table, geometry="geometry").to_crs(epsg=4326) # lonboard expects WGS84
+    _layer = lonboard.HeatmapLayer.from_geopandas(_gdf, aggregation="mean",get_weight=_gdf["grundvaerdi_pr_kvm"],)
+    Map(_layer)
     return
 
 
