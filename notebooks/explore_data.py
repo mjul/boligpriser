@@ -203,7 +203,7 @@ def _(bbr_bygning_gdf):
         radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
     )
     m = Map(layer)
-    return (m,)
+    return Map, ScatterplotLayer, m
 
 
 @app.cell
@@ -262,6 +262,75 @@ def _(mo):
 @app.cell
 def _(bbr_bygning_boliger_table, ejendomsrelation_table):
     bbr_bygning_boliger_table.select(["id_lokalId", "kommunekode", "grund"]).join(ejendomsrelation_table.select(["id_lokalId", "bfeNummer", "ejendomsnummer"]), keys=["id_lokalId"], join_type="left outer")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## MAT
+    ### MAT Samlet Fast Ejendom
+    """)
+    return
+
+
+@app.cell
+def _(pq):
+    MAT_SFE_FILE = "data/mat_samletfastejendom.parquet"
+    print(pq.read_schema(MAT_SFE_FILE))
+    raw_samletfastejendom = pq.read_table(MAT_SFE_FILE)
+    return (raw_samletfastejendom,)
+
+
+@app.cell
+def _(gpd, pc, raw_samletfastejendom):
+    _wkt_array = pc.struct_field(raw_samletfastejendom['geometri'], 'wkt')  # Extract wkt child
+    _crs_array = pc.struct_field(raw_samletfastejendom['geometri'], 'crs')  # Extract crs child
+
+    # Check antagelsen om CRS format for en sikkerheds skyld
+    assert(pc.unique(_crs_array).to_pylist() == [25832])
+
+    _wkt_series = _wkt_array.to_pandas()
+    _gs = gpd.GeoSeries.from_wkt(_wkt_series)
+    _gs.crs = "EPSG:25832"
+    _centroids = _gs.centroid.to_arrow()  # Back to GeoArrow WKB
+
+    sfe_med_geo = raw_samletfastejendom.drop_columns(["geometri"]).append_column("geometry", _centroids)
+    return (sfe_med_geo,)
+
+
+@app.cell
+def _(sfe_med_geo):
+    print(sfe_med_geo.schema)
+    return
+
+
+@app.cell
+def _(crs_array, gpd, sfe_med_geo):
+    _epsg_code = crs_array.drop_null()[0].as_py()  # take first non-null value
+    sfe_gdf = gpd.GeoDataFrame.from_arrow(sfe_med_geo, geometry="geometry")
+    return (sfe_gdf,)
+
+
+@app.cell
+def _(Map, ScatterplotLayer, sfe_gdf):
+    # Vis de første
+    _gdf = sfe_gdf[:100].to_crs(epsg=4326) # lonboard expects WGS84
+    _layer = ScatterplotLayer.from_geopandas(
+        _gdf,  
+        get_fill_color=[0, 120, 255, 128],
+        #get_fill_color=fill_colours,
+        get_radius=10,
+        radius_units="meters",
+        radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
+    )
+    sfe_map = Map([_layer])
+    return (sfe_map,)
+
+
+@app.cell
+def _(sfe_map):
+    sfe_map
     return
 
 
@@ -706,6 +775,16 @@ def _(bolig_vurd_med_vurd_ejd, ejendomsrelation_table, pa, pc):
 def _(mo):
     mo.md(r"""
     Nu er vi tilbage samme sted som `bygning_vurd_via_bfe` ovenfor.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### VUR Ejendomsvurdering -> BFE-nummer -> MAT Samlet Fast Ejendom
+
+    SFE har geometri-data, så hvis vi kan knytte en vurdering til den tilhørende SFE kan vi placere den på kortet.
     """)
     return
 
