@@ -153,6 +153,9 @@ hvor man kan visualisere et GraphQL-skema.
 
 Dette datasæt indeholder tal om ejendomsvurderingerne.
 
+Dokumentationen findes
+her: https://grunddatamodel.datafordeler.dk/objekttypekatalog/ejendomsvurdering/package-summary.html
+
 #### Vurderinger fra 2022
 
 Vi bruger gamle vurderinger fra 2022, da der er flest af dem. Per marts 2026 er Vurderingsstyrelsen næsten halvt færdige
@@ -187,6 +190,13 @@ det virker som et overraskende designvalg.
 #### Ejendomsvurdering
 
 Dette er selve vurderingen af en vurderingsejendom.
+Dokumentation er her: https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html
+
+Vurderingen indeholder bl.a.
+
+- `ejendomvaerdiBeløb` den ved en vurdering ansatte ejendomsværdi (i hele kroner)
+- `grundvaerdiBeloeb` den ved vurdering ansatte grundværdi (i hele kroner)
+- `vurderetAreal` vurderet grundareal. Ejendommens samlede vurderede areal i m2 (incl. Vejareal)
 
 Ejendomme har forskellige anvendelser, vi kigger kun på de mest enkle, `benyttelseKode`:
 
@@ -214,10 +224,10 @@ Der er flere forskellige nøglefelter, men der dog ikke altid er udfyldt:
 - `VURejendomsid` *VURs entydige identifikation af en ejendom på vurderingstidspunktet*
 - (`ESRkommunenummer`, `ESRejendomsnummer`) nøgle til udgåede vurderingsejendomme, der ikke har et BFE-nummer.
 
-Så vidt jeg kan forstå er BFE-nummeret de nøgle, der skal benyttes i fremtiden.
+Så vidt jeg kan forstå er BFE-nummeret den nøgle, der skal benyttes i fremtiden.
 
 `VURejendomsid` er dog udfyldt for de fleste vurderingsejendomme, `vurderingsejendomID` er også.
-Bemærk dog, at relationen tilbage til `Ejendomsvurdering` går via `VURejendomsid` til dennes fkVurderingsejendomID`
+Bemærk dog, at relationen tilbage til `Ejendomsvurdering` går via `VURejendomsid` til dennes `fkVurderingsejendomID`
 og ikke via `vurderingsejendomID` som navngivningen lægger op til.
 
 Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
