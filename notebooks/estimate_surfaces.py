@@ -119,8 +119,35 @@ def _(pc, raw_bfekryds, raw_ejdrel, raw_ev):
     _vurd_uden_bfe = raw_ev.filter(_bolig | _ejerlejl_bolig).select(["id", "ejendomvaerdiBeloeb", "grundvaerdiBeloeb", "vurderetAreal", "benyttelseKode", "fkVurderingsejendomID"])
 
     # Tilknyt BFE-numre og kommunekoder
-    vurd_table = _vurd_uden_bfe.join(raw_bfekryds, keys=["id"], right_keys=["fkEjendomsvurderingID"], join_type="inner").join(raw_ejdrel, keys=["BFEnummer"], right_keys=["bfeNummer"])
-    print(vurd_table.schema)
+    vurd_med_bfe = _vurd_uden_bfe.join(raw_bfekryds, keys=["id"], right_keys=["fkEjendomsvurderingID"], join_type="inner").join(raw_ejdrel, keys=["BFEnummer"], right_keys=["bfeNummer"])
+    print(vurd_med_bfe.schema)
+    return (vurd_med_bfe,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Nøgletal
+    Beregn nøgletal, vurderinger normaliseret pr. kvadratmeter.
+    Vi dropper først vurderinger med 0-areal.
+    """)
+    return
+
+
+@app.cell
+def _(pc, vurd_med_bfe):
+    # Vi gider ikke dele med nul
+    _t = vurd_med_bfe.filter(pc.field("vurderetAreal") > 0)
+
+    _gv_pr_kvm = pc.divide(_t["grundvaerdiBeloeb"], _t["vurderetAreal"])
+    _ev_pr_kvm = pc.divide(_t["ejendomvaerdiBeloeb"], _t["vurderetAreal"])
+    vurd_med_nøgletal = _t.append_column("grundvaerdi_pr_kvm", _gv_pr_kvm).append_column("ejendomsvaerdi_pr_kvm", _ev_pr_kvm)
+    return (vurd_med_nøgletal,)
+
+
+@app.cell
+def _(vurd_med_nøgletal):
+    vurd_table = vurd_med_nøgletal
     return (vurd_table,)
 
 
@@ -159,6 +186,70 @@ def _(gpd, pc, raw_sfe, vurd_table):
 @app.cell
 def _(sfe_med_geo):
     sfe_med_geo
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Saml stumperne
+    """)
+    return
+
+
+@app.cell
+def _(vurd_med_nøgletal):
+    vurd_med_nøgletal.group_by(["BFEnummer"]).aggregate([('BFEnummer', 'count')])
+    return
+
+
+@app.cell
+def _(gpd, sfe_med_geo, vurd_med_nøgletal):
+    gdf = gpd.GeoDataFrame.from_arrow(sfe_med_geo).merge(vurd_med_nøgletal.to_pandas(), on="BFEnummer", how="inner")
+    return (gdf,)
+
+
+@app.cell
+def _(gdf):
+    gdf
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Tegn kort
+    """)
+    return
+
+
+@app.cell
+def _(gdf):
+    mini_gdf = gdf[gdf["kommunekode"] == "0825"]
+    return (mini_gdf,)
+
+
+@app.cell
+def _(mini_gdf):
+    from lonboard import Map, ScatterplotLayer, PolygonLayer
+    from lonboard.colormap import apply_categorical_cmap
+
+    _sp_layer = ScatterplotLayer.from_geopandas(
+        mini_gdf.to_crs(epsg=4326),  # lonboard expects WGS84
+        #get_fill_color=[0, 120, 255, 128],
+        #get_fill_color=fill_colours,
+        #get_radius=10,
+        #radius_units="meters",
+        radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
+    )
+
+    m = Map([_sp_layer])
+    return (m,)
+
+
+@app.cell
+def _(m):
+    m
     return
 
 
