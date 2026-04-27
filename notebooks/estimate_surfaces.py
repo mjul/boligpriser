@@ -24,7 +24,7 @@ def _():
     import geopandas as gpd
     import numpy as np
 
-    return gpd, mo, pc, pq
+    return gpd, mo, np, pc, pq
 
 
 @app.cell(hide_code=True)
@@ -179,7 +179,7 @@ def _(gpd, pc, raw_sfe, vurd_table):
     _gs.crs = "EPSG:25832"
     _centroids = _gs.centroid.to_arrow()  # Back to GeoArrow WKB
 
-    sfe_med_geo = _sfe_med_vurd.append_column("centroid", _centroids)
+    sfe_med_geo = _sfe_med_vurd.drop_columns(["geometri"]).append_column("centroid", _centroids).append_column("poly", _gs.to_arrow())
     return (sfe_med_geo,)
 
 
@@ -230,26 +230,77 @@ def _(gdf):
 
 
 @app.cell
-def _(mini_gdf):
-    from lonboard import Map, ScatterplotLayer, PolygonLayer
-    from lonboard.colormap import apply_categorical_cmap
+def _():
+    import lonboard
+    import lonboard.colormap
+    import matplotlib.colors 
+    import palettable.colorbrewer.sequential
 
-    _sp_layer = ScatterplotLayer.from_geopandas(
-        mini_gdf.to_crs(epsg=4326),  # lonboard expects WGS84
-        #get_fill_color=[0, 120, 255, 128],
-        #get_fill_color=fill_colours,
-        #get_radius=10,
-        #radius_units="meters",
+    return lonboard, matplotlib, palettable
+
+
+@app.cell
+def _(lonboard, mini_gdf):
+    # minigdf has two geometry columns, "poly" and "centroid"
+    # we want to use "centroid" here
+    _gdf = mini_gdf.copy().drop(columns=["poly"]).set_geometry("centroid")
+
+    sp_layer = lonboard.ScatterplotLayer.from_geopandas(
+        _gdf.to_crs(epsg=4326),  # lonboard expects WGS84
+        get_fill_color=[0, 120, 255, 128],
+        get_radius=10,
+        radius_units="meters",
         radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
     )
+    return (sp_layer,)
 
-    m = Map([_sp_layer])
+
+@app.cell
+def _(lonboard, matplotlib, mini_gdf, np, palettable):
+    # minigdf has two geometry columns, "poly" and "centroid"
+    _gdfx = mini_gdf.copy().drop(columns=["centroid"]).set_geometry("poly")
+    _gdfx = _gdfx.to_crs(epsg=4326)
+    _gdfx = _gdfx.explode() # simplify polygons
+
+    _heights = _gdfx["grundvaerdi_pr_kvm"].to_numpy()
+    _heights = np.nan_to_num(_heights, nan=1.0, posinf=1.0, neginf=1.0).astype(np.float32)
+
+    _normalizer = matplotlib.colors.LogNorm(1, _heights.max(), clip=True)
+    _colors = lonboard.colormap.apply_continuous_cmap(
+        _normalizer(_heights),
+        palettable.colorbrewer.sequential.Oranges_9
+    )
+
+    p_layer = lonboard.PolygonLayer.from_geopandas(
+        _gdfx,
+        get_elevation=_gdfx["grundvaerdi_pr_kvm"],
+        #elevation_scale=10,
+        get_fill_color=_colors,
+        get_line_color=_colors,
+        extruded=True,
+        filled=True,
+        #stroked=False,
+        wireframe=False,
+    )
+    return (p_layer,)
+
+
+@app.cell
+def _(lonboard, p_layer, sp_layer):
+    m = lonboard.Map([p_layer, sp_layer, ])
+    m.set_view_state(longitude=10.92610393923485, latitude=57.292346989384896, zoom=12, pitch=30.0, bearing=0.0)
     return (m,)
 
 
 @app.cell
 def _(m):
     m
+    return
+
+
+@app.cell
+def _(m):
+    m.view_state
     return
 
 
