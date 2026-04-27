@@ -408,6 +408,35 @@ def _(raw_ejendomsvurdering):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    #### Benyttelseskoder
+    Der er næsten ingen lejligheder i datasættet:
+    """)
+    return
+
+
+@app.cell
+def _(raw_ejendomsvurdering):
+    raw_ejendomsvurdering.group_by("benyttelseKode", use_threads=False).aggregate([("benyttelseKode", "count"), ]).sort_by("benyttelseKode_count")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    #### Juridisk kategori
+    """)
+    return
+
+
+@app.cell
+def _(raw_ejendomsvurdering):
+    raw_ejendomsvurdering.group_by(["benyttelseKode", "juridiskKategoriTekst", "juridiskUnderkategoriTekst"], use_threads=False).aggregate([([], "count_all"),]).sort_by("count_all")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ### VUR BFE krydsreference
     Her er endelig en nøgle til at krydse de forskellige datasæt:
     """)
