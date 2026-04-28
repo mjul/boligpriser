@@ -81,6 +81,17 @@ uv run ty check
 - `geopandas` til geospatial analyse
 - `lonboard` til kortvisning og visualisering
 
+### Hjælpeværktøjer
+
+#### DuckDB
+
+Denne database er nyttig til opslag i Parquet-filerne, da den kan åbne dem direkte som relationer, f.eks.
+
+```sql
+select count(*)
+from 'data/mat_samletfastejendom.parquet';
+```
+
 ## Data
 
 ### Generelle betragninger om data
