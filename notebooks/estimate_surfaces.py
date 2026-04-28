@@ -24,7 +24,12 @@ def _():
     import geopandas as gpd
     import numpy as np
 
-    return gpd, mo, np, pc, pq
+    import lonboard as lb
+    import lonboard.colormap as lbc
+    import matplotlib.colors
+    import palettable.colorbrewer.sequential
+
+    return gpd, lb, matplotlib, mo, np, palettable, pc, pq
 
 
 @app.cell(hide_code=True)
@@ -223,58 +228,87 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Globale maksima til farvekodning af ejendomme, så farverne er ensartede over hele landet.
+    """)
+    return
+
+
 @app.cell
 def _(gdf):
-    mini_gdf = gdf[gdf["kommunekode"] == "0825"]
+    max_ejendomsvaerdi_pr_kvm = gdf['ejendomsvaerdi_pr_kvm'].max()
+    max_grundvaerdi_pr_kvm = gdf['grundvaerdi_pr_kvm'].max()
+    return (max_ejendomsvaerdi_pr_kvm,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Afgræns til mindre område for overskuelighed
+    """)
+    return
+
+
+@app.cell
+def _(gdf):
+    # 0825: Læsø
+    # 0155: Dragør
+    mini_gdf = gdf[gdf["kommunekode"] == "0155"]
     return (mini_gdf,)
 
 
-@app.cell
-def _():
-    import lonboard
-    import lonboard.colormap
-    import matplotlib.colors 
-    import palettable.colorbrewer.sequential
-
-    return lonboard, matplotlib, palettable
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Klargør lag
+    """)
+    return
 
 
 @app.cell
-def _(lonboard, mini_gdf):
+def _(lb, mini_gdf):
     # minigdf has two geometry columns, "poly" and "centroid"
     # we want to use "centroid" here
-    _gdf = mini_gdf.copy().drop(columns=["poly"]).set_geometry("centroid")
+    _gdf = mini_gdf.drop(columns=["poly"]).set_geometry("centroid")
 
-    sp_layer = lonboard.ScatterplotLayer.from_geopandas(
+    sp_layer = lb.ScatterplotLayer.from_geopandas(
         _gdf.to_crs(epsg=4326),  # lonboard expects WGS84
         get_fill_color=[0, 120, 255, 128],
         get_radius=10,
         radius_units="meters",
         radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
+        opacity = 0.8
     )
     return (sp_layer,)
 
 
 @app.cell
-def _(lonboard, matplotlib, mini_gdf, np, palettable):
+def _(lb, matplotlib, max_ejendomsvaerdi_pr_kvm, mini_gdf, np, palettable):
     # minigdf has two geometry columns, "poly" and "centroid"
-    _gdfx = mini_gdf.copy().drop(columns=["centroid"]).set_geometry("poly")
+    _gdfx = mini_gdf.drop(columns=["centroid"]).set_geometry("poly")
     _gdfx = _gdfx.to_crs(epsg=4326)
-    _gdfx = _gdfx.explode() # simplify polygons
+    # we can _gdfx.explode() to simplify polygons but it looks like we are ok without
 
-    _heights = _gdfx["grundvaerdi_pr_kvm"].to_numpy()
+    _heights, _max = (_gdfx["ejendomsvaerdi_pr_kvm"].to_numpy(), max_ejendomsvaerdi_pr_kvm)
+    #_heights, _max = (_gdfx["grundvaerdi_pr_kvm"].to_numpy(), max_grundvaerdi_pr_kvm)
     _heights = np.nan_to_num(_heights, nan=1.0, posinf=1.0, neginf=1.0).astype(np.float32)
 
-    _normalizer = matplotlib.colors.LogNorm(1, _heights.max(), clip=True)
-    _colors = lonboard.colormap.apply_continuous_cmap(
+    _normalizer = matplotlib.colors.LogNorm(1, _max, clip=True)
+    _colors = lb.colormap.apply_continuous_cmap(
         _normalizer(_heights),
-        palettable.colorbrewer.sequential.Oranges_9
+        # .mpl_colormap is continuous
+        #palettable.colorbrewer.sequential.Oranges_9.mpl_colormap
+        #palettable.colorbrewer.sequential.Blues_8.mpl_colormap
+        #palettable.cmocean.sequential.Thermal_10.mpl_colormap
+        palettable.colorbrewer.diverging.RdYlGn_9.mpl_colormap # red-yellow-green
     )
 
-    p_layer = lonboard.PolygonLayer.from_geopandas(
+    p_layer = lb.PolygonLayer.from_geopandas(
         _gdfx,
-        get_elevation=_gdfx["grundvaerdi_pr_kvm"],
-        #elevation_scale=10,
+        get_elevation=_heights,
+        elevation_scale = 0.01,
         get_fill_color=_colors,
         get_line_color=_colors,
         extruded=True,
@@ -286,21 +320,26 @@ def _(lonboard, matplotlib, mini_gdf, np, palettable):
 
 
 @app.cell
-def _(lonboard, p_layer, sp_layer):
-    m = lonboard.Map([p_layer, sp_layer, ])
-    m.set_view_state(longitude=10.92610393923485, latitude=57.292346989384896, zoom=12, pitch=30.0, bearing=0.0)
+def _(lb, p_layer, sp_layer):
+    m = lb.Map([sp_layer, p_layer])
     return (m,)
 
 
 @app.cell
 def _(m):
+    # Læsø
+    #m.set_view_state(longitude=10.92610393923485, latitude=57.292346989384896, zoom=12, pitch=30.0, bearing=0.0)
+
+    # Dragør
+    m.set_view_state(longitude=12.652040862911235, latitude=55.5910318015398, zoom=12.683223259827004, pitch=30, bearing=0)
+
     m
     return
 
 
 @app.cell
 def _(m):
-    m.view_state
+    print(m.view_state)
     return
 
 
