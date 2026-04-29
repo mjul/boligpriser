@@ -237,9 +237,13 @@ def combine_parquet_files(input_files: list[Path], output_file: Path) -> None:
 
 # Vi bruger nogle af de små kommuner til at eksperimentere med
 KOMMUNEKODER: dict[str, str] = {
+    "0147": "Frederiksberg",
     "0155": "Dragør",
+    "0461": "Odense",
     "0482": "Langeland",
+    "0561": "Esbjerg",
     "0563": "Fanø",
+    "0740": "Silkeborg",
     "0825": "Læsø",
 }  # TODO: complete
 KOMMUNEKODE_LÆSØ = "0825"
