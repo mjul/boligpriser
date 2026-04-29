@@ -22,14 +22,17 @@ def _():
     import geoarrow.pyarrow as ga
     import geoarrow.pyarrow.io as gaio
     import geopandas as gpd
+
     import numpy as np
+    import scipy.interpolate
+    import shapely
 
     import lonboard as lb
     import lonboard.colormap as lbc
     import matplotlib.colors
     import palettable.colorbrewer.sequential
 
-    return gpd, lb, matplotlib, mo, np, palettable, pc, pq
+    return gpd, lb, matplotlib, mo, np, palettable, pc, pq, scipy, shapely
 
 
 @app.cell(hide_code=True)
@@ -257,7 +260,7 @@ def _(gdf):
     # 0461: Odense
     # 0740: Silkeborg
     # 0825: Læsø
-    mini_gdf = gdf[gdf["kommunekode"] == "0155"]
+    mini_gdf = gdf[gdf["kommunekode"] == "0461"]
 
     assert(mini_gdf.shape[0] > 0)
     return (mini_gdf,)
@@ -393,6 +396,91 @@ def _(mo):
 @app.cell
 def _(m):
     print(m.view_state)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Vis kort med iso-linier for grundværdier pr. kvadratmeter
+
+    Vi estimerer områdets grundværdi pr. kvadratmeter ved interpolation
+    og tegner det på kortet med iso-linier for de forskellige prisniveauer.
+    """)
+    return
+
+
+@app.cell
+def _(gpd, heights, mini_gdf, mo, np, scipy, shapely):
+
+    # 1. Source points in EPSG:25832
+    _gdf_pts = mini_gdf.drop(columns=["poly"]).set_geometry("centroid").to_crs(epsg=25832)
+    _xy = np.column_stack([_gdf_pts.geometry.x, _gdf_pts.geometry.y])
+    _z = heights.astype(dtype=np.float64)
+    _mask = np.isfinite(_z)
+    _xy, _z = _xy[_mask], _z[_mask]
+
+    # 2. Regular grid over bounding box
+    _xmin, _ymin, _xmax, _ymax = _gdf_pts.total_bounds
+    _grid_n = 200
+    _gx = np.linspace(_xmin, _xmax, _grid_n)
+    _gy = np.linspace(_ymin, _ymax, _grid_n)
+    _GX, _GY = np.meshgrid(_gx, _gy)
+    _grid_pts = np.column_stack([_GX.ravel(), _GY.ravel()])
+
+    # 3. Fast local RBF: neighbors=50 avoids global O(N²) solve
+    _interp = scipy.interpolate.RBFInterpolator(
+        _xy, np.log1p(_z),
+        kernel="linear",    # cheaper than thin_plate_spline
+        neighbors=100,       # how many nearest points per query point
+        smoothing=10.0,
+    )
+    _z_grid = np.expm1(_interp(_grid_pts)).reshape(_grid_n, _grid_n)
+    _z_grid = np.clip(_z_grid, 0, None)
+
+    # 4. Vectorized cell polygon creation (no Python loop!)
+    _dx = (_xmax - _xmin) / (_grid_n - 1)
+    _dy = (_ymax - _ymin) / (_grid_n - 1)
+    _cx = _GX.ravel()
+    _cy = _GY.ravel()
+    # shapely.box accepts arrays directly in Shapely 2.x
+    _cells = shapely.box(_cx - _dx/2, _cy - _dy/2, _cx + _dx/2, _cy + _dy/2)
+
+    grid_gdf = gpd.GeoDataFrame(
+        {"grundvaerdi_interp": _z_grid.ravel()},
+        geometry=_cells,
+        crs="EPSG:25832",
+    ).to_crs(epsg=4326)
+
+    mo.md(f"Grid: {grid_gdf.shape[0]} celler")
+    return (grid_gdf,)
+
+
+@app.cell
+def _(grid_gdf, lb, matplotlib, np, palettable):
+    _z_vals = grid_gdf["grundvaerdi_interp"].to_numpy(dtype=np.float32)
+    _binned = np.percentile(_z_vals, np.arange(0, 101, 10))
+    _bin_cmap = matplotlib.colors.ListedColormap(palettable.colorbrewer.diverging.RdYlGn_10.mpl_colors)
+    _bin_norm = matplotlib.colors.BoundaryNorm(_binned, ncolors=_bin_cmap.N, clip=True)
+    _grid_colours = lb.colormap.apply_continuous_cmap(_bin_norm(_z_vals), _bin_cmap)
+
+    grid_layer = lb.SolidPolygonLayer.from_geopandas(
+        grid_gdf,
+        get_fill_color=_grid_colours,
+        extruded=False,
+        filled=True,
+        opacity=0.65,
+    )
+    return (grid_layer,)
+
+
+@app.cell
+def _(grid_layer, lb):
+    m_grid = lb.Map([grid_layer])
+    m_grid.set_view_state(
+        pitch=30,
+    )
+    m_grid
     return
 
 
