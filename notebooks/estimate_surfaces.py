@@ -240,7 +240,7 @@ def _(mo):
 def _(gdf):
     max_ejendomsvaerdi_pr_kvm = gdf['ejendomsvaerdi_pr_kvm'].max()
     max_grundvaerdi_pr_kvm = gdf['grundvaerdi_pr_kvm'].max()
-    return (max_ejendomsvaerdi_pr_kvm,)
+    return (max_grundvaerdi_pr_kvm,)
 
 
 @app.cell(hide_code=True)
@@ -253,75 +253,120 @@ def _(mo):
 
 @app.cell
 def _(gdf):
-    # 0825: Læsø
     # 0155: Dragør
+    # 0461: Odense
+    # 0740: Silkeborg
+    # 0825: Læsø
     mini_gdf = gdf[gdf["kommunekode"] == "0155"]
+
+    assert(mini_gdf.shape[0] > 0)
     return (mini_gdf,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    Klargør lag
+    ### Farvelægning
     """)
     return
 
 
 @app.cell
-def _(lb, mini_gdf):
+def _(lb, matplotlib, max_grundvaerdi_pr_kvm, mini_gdf, np, palettable):
+    #heights, heights_max = (mini_gdf["ejendomsvaerdi_pr_kvm"].to_numpy(), max_ejendomsvaerdi_pr_kvm)
+    heights, heights_max = (mini_gdf["grundvaerdi_pr_kvm"].to_numpy(), max_grundvaerdi_pr_kvm)
+
+    heights = np.nan_to_num(heights, nan=1.0, posinf=1.0, neginf=1.0).astype(np.float32)
+
+    _normalizer = matplotlib.colors.LogNorm(1, heights_max, clip=True)
+    colours = lb.colormap.apply_continuous_cmap(
+        _normalizer(heights),
+        # .mpl_colormap is continuous
+        #palettable.colorbrewer.sequential.Oranges_9.mpl_colormap
+        #palettable.colorbrewer.sequential.Blues_8.mpl_colormap
+        #palettable.cmocean.sequential.Thermal_10.mpl_colormap
+        palettable.colorbrewer.diverging.RdYlGn_10.mpl_colormap # red-yellow-green
+    )
+
+    # percentiles in 10% bands
+    _binned = np.percentile(heights, np.arange(0, 101, 10))
+    _bin_cmap = matplotlib.colors.ListedColormap(palettable.colorbrewer.diverging.RdYlGn_10.mpl_colors)
+    _bin_norm = matplotlib.colors.BoundaryNorm(_binned, ncolors=_bin_cmap.N, clip=True)
+    binned_colours = lb.colormap.apply_continuous_cmap(
+        _bin_norm(heights), 
+        _bin_cmap)
+    return binned_colours, colours, heights
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Klargør lag
+    """)
+    return
+
+
+@app.cell
+def _(binned_colours, lb, mini_gdf, np):
     # minigdf has two geometry columns, "poly" and "centroid"
     # we want to use "centroid" here
     _gdf = mini_gdf.drop(columns=["poly"]).set_geometry("centroid")
 
+    # Farvelæg med alpha 0.5 (128 i uint8)
+    _med_alpha = np.hstack([binned_colours, 128*np.ones((binned_colours.shape[0],1),dtype=np.uint8)])
+
     sp_layer = lb.ScatterplotLayer.from_geopandas(
         _gdf.to_crs(epsg=4326),  # lonboard expects WGS84
-        get_fill_color=[0, 120, 255, 128],
+        get_fill_color= _med_alpha, # [0, 120, 255, 128],
         get_radius=10,
         radius_units="meters",
-        radius_min_pixels=6,    # never smaller than 6px on screen, so we can see it when zoomed out
-        opacity = 0.8
+        radius_min_pixels=3,    # never smaller than 3px on screen, so we can see it when zoomed out
+        opacity = 0.8,
     )
     return (sp_layer,)
 
 
 @app.cell
-def _(lb, matplotlib, max_ejendomsvaerdi_pr_kvm, mini_gdf, np, palettable):
+def _(binned_colours, colours, heights, lb, mini_gdf):
     # minigdf has two geometry columns, "poly" and "centroid"
     _gdfx = mini_gdf.drop(columns=["centroid"]).set_geometry("poly")
     _gdfx = _gdfx.to_crs(epsg=4326)
     # we can _gdfx.explode() to simplify polygons but it looks like we are ok without
 
-    _heights, _max = (_gdfx["ejendomsvaerdi_pr_kvm"].to_numpy(), max_ejendomsvaerdi_pr_kvm)
-    #_heights, _max = (_gdfx["grundvaerdi_pr_kvm"].to_numpy(), max_grundvaerdi_pr_kvm)
-    _heights = np.nan_to_num(_heights, nan=1.0, posinf=1.0, neginf=1.0).astype(np.float32)
-
-    _normalizer = matplotlib.colors.LogNorm(1, _max, clip=True)
-    _colors = lb.colormap.apply_continuous_cmap(
-        _normalizer(_heights),
-        # .mpl_colormap is continuous
-        #palettable.colorbrewer.sequential.Oranges_9.mpl_colormap
-        #palettable.colorbrewer.sequential.Blues_8.mpl_colormap
-        #palettable.cmocean.sequential.Thermal_10.mpl_colormap
-        palettable.colorbrewer.diverging.RdYlGn_9.mpl_colormap # red-yellow-green
-    )
-
-    p_layer = lb.PolygonLayer.from_geopandas(
+    p3d_layer = lb.PolygonLayer.from_geopandas(
         _gdfx,
-        get_elevation=_heights,
+        get_elevation=heights,
         elevation_scale = 0.01,
-        get_fill_color=_colors,
-        get_line_color=_colors,
+        get_fill_color=binned_colours,
+        get_line_color=colours,
         extruded=True,
         filled=True,
         #stroked=False,
         wireframe=False,
+        opacity = 0.8,
     )
-    return (p_layer,)
+
+    p2d_layer = lb.SolidPolygonLayer.from_geopandas(
+        _gdfx,
+        get_fill_color=binned_colours,
+        extruded = False,
+        filled = True,
+        opacity = 0.8,
+    )
+    return p2d_layer, p3d_layer
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Vis kort over grundværdier pr. kvadratmeter
+    """)
+    return
 
 
 @app.cell
-def _(lb, p_layer, sp_layer):
-    m = lb.Map([sp_layer, p_layer])
+def _(lb, p2d_layer, p3d_layer, sp_layer):
+    m = lb.Map([sp_layer, p3d_layer, p2d_layer])
     return (m,)
 
 
@@ -331,9 +376,17 @@ def _(m):
     #m.set_view_state(longitude=10.92610393923485, latitude=57.292346989384896, zoom=12, pitch=30.0, bearing=0.0)
 
     # Dragør
-    m.set_view_state(longitude=12.652040862911235, latitude=55.5910318015398, zoom=12.683223259827004, pitch=30, bearing=0)
+    m.set_view_state(longitude=12.653578731608945, latitude=55.59078681012855, zoom=12.777960506764058, pitch=30, bearing=0)
 
     m
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    NB! Lonboard bruger `deck.gl`, der åbenbart ikke opdaterer 3D-geometrierne hvis vi genberegner cellerne ovenfor. Hvis kortet kun viser scatter-plot laget kan man løse det ved at genindlæse siden i browseren ("reload").
+    """)
     return
 
 
