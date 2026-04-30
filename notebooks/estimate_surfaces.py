@@ -419,6 +419,12 @@ def _(m):
     return
 
 
+@app.cell
+def _(m):
+    #m.to_html(filename="images/odense-grundværdi-pr-kvm-2022.html", title="Grundvaerdi pr. kvm 2022")
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
