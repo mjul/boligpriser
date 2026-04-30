@@ -184,8 +184,11 @@ med 2022-sagerne, for 2024-sagerne er der kun udsendt omkring 380.000:
 
 https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
 
-I kontrast til ovenstående er der interessant nok kun ca. 608.000 ejendomsvurderinger i databasen for 2022.
-2024-vurderingerne er der slet ikke.
+I kontrast til ovenstående er der interessant nok kun ca. 608.000 ejendomsvurderinger i databasen for 2022 (pr. 1. jan. 2026),
+og ca. 900.000 ejendomsvurderinger (pr. 30. april 2026). Seneste ajourføringsdato i
+datasættet er 22. januar 2026, så arbejdet lader til at være gået i stå. 
+
+2024-vurderingerne er der slet ikke. 
 
 #### Kodelisterne er ikke på første normalform
 
