@@ -8,6 +8,13 @@
 Kort over fordelingen af priserne på villaer og ejerlejligheder i Danmark.
 Data hentes fra "Klimadatastyrelsen", se [Datafordeleren](https://datafordeler.dk).
 
+![Grundværdi pr. kvm i Odense 2022](./images/odense-villaer-grundværdi-pr-kvm-2022.png "Odense grundværdi pr. kvm. 2022")
+
+## Eksempler (3D)
+Grundværdi pr. kvadratmeter (kvm) i Danmark, 2022:
+- [Dragør](./images/dragør-grundværdi-pr-kvm-2022.html "Dragør grundværdi pr. kvm. 2022")
+- [Odense](./images/odense-grundværdi-pr-kvm-2022.html "Odense grundværdi pr. kvm. 2022")
+
 ## Struktur
 
 - `downloader.py` - Hent data fra [Datafordeleren](https://datafordeler.dk) og gem i GeoParquet-format.
@@ -221,7 +228,8 @@ Ejendomme har forskellige anvendelser, vi kigger kun på de mest enkle, `benytte
 Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html#_A22606_62910
 
 Det står ikke i dokumentationen, men `benyttelseKode` er faktisk forældet.
-Fremover skal man bruge `juridiskKategoriKode` og `juridiskUnderkategoriKode` i stedet (jeg har fejlmeldt dokumentationen).
+Fremover skal man bruge `juridiskKategoriKode` og `juridiskUnderkategoriKode` i stedet (jeg har fejlmeldt
+dokumentationen).
 
 Kardinalitet: ca. 900.000 ejendomsvurderinger for 2022 pr. 30. april 2026.
 
