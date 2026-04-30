@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.23.2"
-app = marimo.App()
+app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
@@ -23,16 +23,31 @@ def _():
     import geoarrow.pyarrow.io as gaio
     import geopandas as gpd
 
+    import lonboard as lb
+    import lonboard.colormap as lbc
+    import palettable.colorbrewer.sequential
+    import matplotlib.colors
+
+    import contextily as ctx
+    import matplotlib.pyplot as plt
     import numpy as np
     import scipy.interpolate
     import shapely
 
-    import lonboard as lb
-    import lonboard.colormap as lbc
-    import matplotlib.colors
-    import palettable.colorbrewer.sequential
-
-    return gpd, lb, matplotlib, mo, np, palettable, pc, pq, scipy, shapely
+    return (
+        ctx,
+        gpd,
+        lb,
+        matplotlib,
+        mo,
+        np,
+        palettable,
+        pc,
+        plt,
+        pq,
+        scipy,
+        shapely,
+    )
 
 
 @app.cell(hide_code=True)
@@ -287,13 +302,17 @@ def _(lb, matplotlib, max_grundvaerdi_pr_kvm, mini_gdf, np, palettable):
         # .mpl_colormap is continuous
         #palettable.colorbrewer.sequential.Oranges_9.mpl_colormap
         #palettable.colorbrewer.sequential.Blues_8.mpl_colormap
+        #palettable.colorbrewer.sequential.YlOrRd_5.mpl_colormap
         #palettable.cmocean.sequential.Thermal_10.mpl_colormap
         palettable.colorbrewer.diverging.RdYlGn_10.mpl_colormap # red-yellow-green
     )
 
     # percentiles in 10% bands
     _binned = np.percentile(heights, np.arange(0, 101, 10))
-    _bin_cmap = matplotlib.colors.ListedColormap(palettable.colorbrewer.diverging.RdYlGn_10.mpl_colors)
+    _bin_cmap = matplotlib.colors.ListedColormap(
+        #palettable.colorbrewer.diverging.RdYlGn_10.mpl_colors
+        palettable.colorbrewer.diverging.Spectral_10.mpl_colors
+    )
     _bin_norm = matplotlib.colors.BoundaryNorm(_binned, ncolors=_bin_cmap.N, clip=True)
     binned_colours = lb.colormap.apply_continuous_cmap(
         _bin_norm(heights), 
@@ -369,7 +388,7 @@ def _(mo):
 
 @app.cell
 def _(lb, p2d_layer, p3d_layer, sp_layer):
-    m = lb.Map([sp_layer, p3d_layer, p2d_layer])
+    m = lb.Map([sp_layer, p3d_layer, p2d_layer], basemap=lb.basemap. MaplibreBasemap(style=lb.basemap.CartoBasemap.Positron))
     return (m,)
 
 
@@ -379,8 +398,9 @@ def _(m):
     #m.set_view_state(longitude=10.92610393923485, latitude=57.292346989384896, zoom=12, pitch=30.0, bearing=0.0)
 
     # Dragør
-    m.set_view_state(longitude=12.653578731608945, latitude=55.59078681012855, zoom=12.777960506764058, pitch=30, bearing=0)
+    #m.set_view_state(longitude=12.653578731608945, latitude=55.59078681012855, zoom=12.777960506764058, pitch=30, bearing=0)
 
+    m.set_view_state(zoom=11, pitch=30)
     m
     return
 
@@ -406,6 +426,8 @@ def _(mo):
 
     Vi estimerer områdets grundværdi pr. kvadratmeter ved interpolation
     og tegner det på kortet med iso-linier for de forskellige prisniveauer.
+
+    Vi benytter nu Matplotlib, da det det afvikles i processen, så vi kan gemme kortet (Lonboard visualiserer i WebGL på klienten).
     """)
     return
 
@@ -438,7 +460,7 @@ def _(gpd, heights, mini_gdf, mo, np, scipy, shapely):
     _z_grid = np.expm1(_interp(_grid_pts)).reshape(_grid_n, _grid_n)
     _z_grid = np.clip(_z_grid, 0, None)
 
-    # 4. Vectorized cell polygon creation (no Python loop!)
+    # 4. Vectorized cell polygon creation 
     _dx = (_xmax - _xmin) / (_grid_n - 1)
     _dy = (_ymax - _ymin) / (_grid_n - 1)
     _cx = _GX.ravel()
@@ -453,6 +475,12 @@ def _(gpd, heights, mini_gdf, mo, np, scipy, shapely):
     ).to_crs(epsg=4326)
 
     mo.md(f"Grid: {grid_gdf.shape[0]} celler")
+
+    # TODO: Boolean mask: keep only cells that intersect land
+    #_land = gpd.read_file(geodatasets.get_path("naturalearth.land"))
+    #_land_union = _land.to_crs(epsg=25832).union_all()
+    #grid_gdf = grid_gdf.to_crs(epsg=25832)
+    #grid_gdf = grid_gdf[grid_gdf.intersects(_land_union)].to_crs(epsg=4326)
     return (grid_gdf,)
 
 
@@ -464,23 +492,56 @@ def _(grid_gdf, lb, matplotlib, np, palettable):
     _bin_norm = matplotlib.colors.BoundaryNorm(_binned, ncolors=_bin_cmap.N, clip=True)
     _grid_colours = lb.colormap.apply_continuous_cmap(_bin_norm(_z_vals), _bin_cmap)
 
-    grid_layer = lb.SolidPolygonLayer.from_geopandas(
-        grid_gdf,
-        get_fill_color=_grid_colours,
-        extruded=False,
-        filled=True,
-        opacity=0.65,
-    )
-    return (grid_layer,)
+    # _grid_colours is typically a numpy array of shape (N, 4) with uint8 RGBA values.
+    # matplotlib expects float [0, 1] RGBA, so normalize if needed.
+    if _grid_colours.dtype == np.uint8:
+        _unit_colours = _grid_colours / 255.0
+    else:
+        _unit_colours = _grid_colours  # already float
+
+    # Alpha kolonne
+    _ALPHA = 0.5
+    grid_colours = np.hstack([_unit_colours, np.zeros((_unit_colours.shape[0], 1))])
+    grid_colours[:,3] = _ALPHA
+    return (grid_colours,)
 
 
 @app.cell
-def _(grid_layer, lb):
-    m_grid = lb.Map([grid_layer])
-    m_grid.set_view_state(
-        pitch=30,
+def _(grid_gdf):
+    grid_gdf_web = grid_gdf.to_crs(epsg=3857)  # contextily needs Web Mercator
+    return (grid_gdf_web,)
+
+
+@app.cell
+def _(ctx, grid_colours, grid_gdf, grid_gdf_web, plt):
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    grid_gdf_web.plot(ax=ax, color=grid_colours, edgecolor="none")
+    ctx.add_basemap(ax, source=ctx.providers.CartoDB.Positron)
+
+    grid_gdf.plot(
+        ax=ax,
+        color=grid_colours,         # per-row RGBA colors
+        edgecolor="none",     # no border, like extruded=False filled=True
     )
-    m_grid
+
+    ax.set_axis_off()
+    plt.tight_layout()
+
+    # Zoom to grid data
+    _pad_frac = 0.05  # 5% padding 
+    _minx, _miny, _maxx, _maxy = grid_gdf_web.total_bounds
+    _dx = (_maxx - _minx) * _pad_frac
+    _dy = (_maxy - _miny) * _pad_frac
+
+    ax.set_xlim(_minx - _dx, _maxx + _dx)
+    ax.set_ylim(_miny - _dy, _maxy + _dy)
+    return (fig,)
+
+
+@app.cell
+def _(fig):
+    fig
     return
 
 
