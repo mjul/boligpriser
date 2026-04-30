@@ -184,11 +184,12 @@ med 2022-sagerne, for 2024-sagerne er der kun udsendt omkring 380.000:
 
 https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
 
-I kontrast til ovenstående er der interessant nok kun ca. 608.000 ejendomsvurderinger i databasen for 2022 (pr. 1. jan. 2026),
+I kontrast til ovenstående er der interessant nok kun ca. 608.000 ejendomsvurderinger i databasen for 2022 (pr. 1. jan.
+2026),
 og ca. 900.000 ejendomsvurderinger (pr. 30. april 2026). Seneste ajourføringsdato i
-datasættet er 22. januar 2026, så arbejdet lader til at være gået i stå. 
+datasættet er 22. januar 2026, så arbejdet lader til at være gået i stå.
 
-2024-vurderingerne er der slet ikke. 
+2024-vurderingerne er der slet ikke.
 
 #### Kodelisterne er ikke på første normalform
 
@@ -219,7 +220,10 @@ Ejendomme har forskellige anvendelser, vi kigger kun på de mest enkle, `benytte
 
 Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html#_A22606_62910
 
-Kardinalitet: ca. 608.000 ejendomsvurderinger for 2022.
+Det står ikke i dokumentationen, men `benyttelseKode` er faktisk forældet.
+Fremover skal man bruge `juridiskKategoriKode` og `juridiskUnderkategoriKode` i stedet (jeg har fejlmeldt dokumentationen).
+
+Kardinalitet: ca. 900.000 ejendomsvurderinger for 2022 pr. 30. april 2026.
 
 #### Vurderingsejendom
 
