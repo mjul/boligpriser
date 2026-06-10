@@ -11,7 +11,9 @@ Data hentes fra "Klimadatastyrelsen", se [Datafordeleren](https://datafordeler.d
 ![Grundværdi pr. kvm i Odense 2022](./images/odense-villaer-grundværdi-pr-kvm-2022.png "Odense grundværdi pr. kvm. 2022")
 
 ## Eksempler (3D)
+
 Grundværdi pr. kvadratmeter (kvm) i Danmark, 2022:
+
 - [Dragør](./images/dragør-grundværdi-pr-kvm-2022.html "Dragør grundværdi pr. kvm. 2022")
 - [Odense](./images/odense-grundværdi-pr-kvm-2022.html "Odense grundværdi pr. kvm. 2022")
 
@@ -191,10 +193,29 @@ med 2022-sagerne, for 2024-sagerne er der kun udsendt omkring 380.000:
 
 https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
 
-I kontrast til ovenstående er der interessant nok kun ca. 608.000 ejendomsvurderinger i databasen for 2022 (pr. 1. jan.
-2026),
-og ca. 900.000 ejendomsvurderinger (pr. 30. april 2026). Seneste ajourføringsdato i
-datasættet er 22. januar 2026, så arbejdet lader til at være gået i stå.
+I kontrast til ovenstående er der interessant nok væsentligt færre i det faktiske datasæt.
+Tilmed virker arbejdet at gå stå i lange perioder.
+
+Her er en oversigt over antallet af ejendomsvurderinger pr. ajourføringsdato udgivet pr. måned:
+
+```sql
+select year (ajourfoeringDato) y, month (ajourfoeringDato) as m, count (*) n, sum (n) over (order by y, m) total
+from vur_ejendomsvurdering
+group by y, m
+order by y, m;
+```
+
+|   År | Måned | Antal udgivet |  Total |
+|-----:|------:|--------------:|-------:|
+| 2025 |    10 |        299504 | 299504 |
+| 2025 |    11 |         97227 | 396731 |
+| 2025 |    12 |        211102 | 607833 |
+| 2026 |     1 |        287963 | 895796 |
+| 2026 |     2 |             0 | 895796 |
+| 2026 |     3 |             0 | 895796 |
+| 2026 |     4 |             0 | 895796 |
+| 2026 |     5 |             0 | 895796 |
+| 2026 |     6 |         40284 | 936080 |
 
 2024-vurderingerne er der slet ikke.
 
