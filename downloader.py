@@ -304,7 +304,7 @@ async def download_bbr_bygning_kommune(
         """
         query GetBBRBygninger($cursor: String, $kommunekode: String!) {
           BBR_Bygning(
-            virkningstid: "2026-05-01T00:00:00+02:00"
+            virkningstid: "2026-07-01T00:00:00+02:00"
             first: 1000
             after: $cursor
             where: {
@@ -425,7 +425,7 @@ async def download_bbr_ejendomsrelation_kommune(
         """
         query GetBBREjendomsrelation($cursor: String, $kommunekode: String!) {
           BBR_Ejendomsrelation(
-            virkningstid: "2026-05-01T00:00:00+02:00"
+            virkningstid: "2026-07-01T00:00:00+02:00"
             first: 1000
             after: $cursor
             where: {
@@ -495,8 +495,8 @@ async def download_mat_samletfastejendom(config: DownloaderConfig) -> None:
           MAT_SamletFastEjendom(
             first: 1000
             after: $cursor
-            registreringstid: "2026-05-01T00:00:00+02:00"
-            virkningstid: "2026-05-01T00:00:00+02:00"
+            registreringstid: "2026-07-01T00:00:00+02:00"
+            virkningstid: "2026-07-01T00:00:00+02:00"
             where: {
               status: {
                 eq: "Gældende" # status 7: Gældende
@@ -562,7 +562,7 @@ async def download_vur_ejendomsvurdering(config: DownloaderConfig) -> None:
             first: 1000
             after: $cursor
             where: {
-              ajourfoeringDato: {lt: "2026-05-01T00:00:00+02:00"}
+              ajourfoeringDato: {lt: "2026-07-01T00:00:00+02:00"}
               aar: {eq: $vurderingsaar}
             }
           ) {
