@@ -5,8 +5,8 @@
 - *Hvor langt skal man væk fra bymidten for at have råd til en bolig?*
 - *Hvor stor skal byen være for at folk har råd til at bo der?*
 
-Kort over fordelingen af priserne på villaer og ejerlejligheder i Danmark.
-Data hentes fra "Klimadatastyrelsen", se [Datafordeleren](https://datafordeler.dk).
+Kort over fordelingen af priserne på villaer og ejerlejligheder i Danmark. Data hentes fra "Klimadatastyrelsen",
+se [Datafordeleren](https://datafordeler.dk).
 
 ![Grundværdi pr. kvm i Odense 2022](./images/odense-villaer-grundværdi-pr-kvm-2022.png "Odense grundværdi pr. kvm. 2022")
 
@@ -35,8 +35,8 @@ Grundværdi pr. kvadratmeter (kvm) i Danmark, 2022:
 
 ## Installation
 
-Vi forudsætter, at `uv` er installeret.
-Fiona og GDAL wheels er ikke tilgængeligt til Python 3.14 endnu, so vi bruger 3.13:
+Vi forudsætter, at `uv` er installeret. Fiona og GDAL wheels er ikke tilgængeligt til Python 3.14 endnu, so vi bruger
+3.13:
 
 ```
 uv python pin 3.13
@@ -109,10 +109,10 @@ Helt generelt er data i Datafordeleren en værre rodebutik.
 
 #### Manglende domænemodel
 
-APIet er lige blevet modernisere, men lader til at have fokuseret på det rent tekniske aspekt at introducere
-GraphQL for alle datakilder. Det lader ikke til, at moderniseringen har været rettet mod at skabe et idiomatisk
-GraphQL-API eller udstiller data i en sammenhængende domænemodel, der skjuler midlertidige implementeringsdetaljer og
-understøtter de almindelige anvendelser på enkel vis.
+APIet er lige blevet modernisere, men lader til at have fokuseret på det rent tekniske aspekt at introducere GraphQL for
+alle datakilder. Det lader ikke til, at moderniseringen har været rettet mod at skabe et idiomatisk GraphQL-API eller
+udstiller data i en sammenhængende domænemodel, der skjuler midlertidige implementeringsdetaljer og understøtter de
+almindelige anvendelser på enkel vis.
 
 #### GraphQL uden Graph
 
@@ -126,8 +126,8 @@ lokalt, eller over API'et, hvilket giver det velkendte *1+N* problem.
 ##### Initiativet Fleksibel Opslagslogik vil råde bod på dette
 
 Problemet lader til at være kendt og der lader til at være et igangværende initiativ om at udstille relationerne i
-GraphQL. Pudsigt nok udstilles det i nye separate skemaer i stedet for at sætte dem ind i de eksisterende skemaer,
-hvor man har brug for relationerne:
+GraphQL. Pudsigt nok udstilles det i nye separate skemaer i stedet for at sætte dem ind i de eksisterende skemaer, hvor
+man har brug for relationerne:
 
 https://confluence.sdfi.dk/display/DML/Fleksibel+opslagslogik
 
@@ -138,15 +138,15 @@ Fleksibel opslagslogik lader ikke til at være færdig, så vi vil ikke bruge de
 
 ### Dataindsamling
 
-Her anvender vi GraphQL til at hente data fra Datafordeleren til lokale Parquet filer,
-hvorfra vi siden sammenstykker de relevante data.
+Her anvender vi GraphQL til at hente data fra Datafordeleren til lokale Parquet filer, hvorfra vi siden sammenstykker de
+relevante data.
 
-Det tager lidt tid at hente alle data, da APIet typisk kun udleverer en side med 1000 datapunkter pr. HTTP-kald.
-Det er en engangsforteelse, så det er ikke et stort problem her.
+Det tager lidt tid at hente alle data, da APIet typisk kun udleverer en side med 1000 datapunkter pr. HTTP-kald. Det er
+en engangsforteelse, så det er ikke et stort problem her.
 
 Da vi således ikke har væsentlig glæde af GraphQL-APIet, ville et godt alternativ være at hente alle data som filer, og
-så udtrække de relevante datapunkter fra disse. Muligheden for at hente filer fra Datafordeleren udfases dog ultimo
-2026 som led i moderniseringen til GraphQL-uden-Graph.
+så udtrække de relevante datapunkter fra disse. Muligheden for at hente filer fra Datafordeleren udfases dog ultimo 2026
+som led i moderniseringen til GraphQL-uden-Graph.
 
 ### Gem skemaer i `schemas`
 
@@ -158,9 +158,8 @@ Jeg anbefaler at hente GraphQL skemaerne og gemme dem i `schemas` til reference:
 
 ### Forespørgsler skal bygges i hånden
 
-Jeg anbefaler at skrive disse i hånden, da "Byg GraphQL Query" funktionen på Datafordeleren
-ikke genererer gyldige forespørgsler hvis man spørger på sammensatte typer. Den kan kun bruges
-til skitser, skemaet er den eneste reference.
+Jeg anbefaler at skrive disse i hånden, da "Byg GraphQL Query" funktionen på Datafordeleren ikke genererer gyldige
+forespørgsler hvis man spørger på sammensatte typer. Den kan kun bruges til skitser, skemaet er den eneste reference.
 
 Support-afdelingen hos Datafordeler anbefaler i stedet at bruge trediepartsværktøjer som
 [Altair GraphQL](https://altairgraphql.dev/) til at generere gyldige forespørgsler. Fejlen i deres "Byg GraphQL Query"
@@ -193,8 +192,8 @@ med 2022-sagerne, for 2024-sagerne er der kun udsendt omkring 380.000:
 
 https://vurdst.dk/udsendelser-af-deklarationer-og-vurderinger
 
-I kontrast til ovenstående er der interessant nok væsentligt færre i det faktiske datasæt.
-Tilmed virker arbejdet at gå stå i lange perioder.
+I kontrast til ovenstående er der interessant nok væsentligt færre i det faktiske datasæt. Tilmed virker arbejdet at gå
+stå i lange perioder.
 
 Her er en oversigt over antallet af ejendomsvurderinger pr. ajourføringsdato udgivet pr. måned:
 
@@ -215,7 +214,8 @@ order by y, m;
 | 2026 |     3 |             0 | 895796 |
 | 2026 |     4 |             0 | 895796 |
 | 2026 |     5 |             0 | 895796 |
-| 2026 |     6 |         40284 | 936080 |
+| 2026 |     6 |         73723 | 969519 |
+| 2026 |     7 |             0 | 969519 |
 
 2024-vurderingerne er der slet ikke.
 
@@ -225,15 +225,14 @@ Man skal sætte sig ind i en række kodelister for at bruge systemet, f.eks.:
 
 - VUR DK kodelister: https://confluence.sdfi.dk/pages/viewpage.action?pageId=82346523
 
-Af en eller anden grund er mange af koderne sammensatte, hvor det havde være mere naturligt
-at normalisere og adskille ortogonale dimensioner, svarende til første normalform for databaser.
-Det øger kompleksiteten af klientapplikationerne og skaber stærkere koblinger end nødvendigt, så
-det virker som et overraskende designvalg.
+Af en eller anden grund er mange af koderne sammensatte, hvor det havde være mere naturligt at normalisere og adskille
+ortogonale dimensioner, svarende til første normalform for databaser. Det øger kompleksiteten af klientapplikationerne
+og skaber stærkere koblinger end nødvendigt, så det virker som et overraskende designvalg.
 
 #### Ejendomsvurdering
 
-Dette er selve vurderingen af en vurderingsejendom.
-Dokumentation er her: https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html
+Dette er selve vurderingen af en vurderingsejendom. Dokumentation er
+her: https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html
 
 Vurderingen indeholder bl.a.
 
@@ -248,9 +247,8 @@ Ejendomme har forskellige anvendelser, vi kigger kun på de mest enkle, `benytte
 
 Se https://grunddatamodel.datafordeler.dk/objekttypekatalog/Ejendomsvurdering/Ejendomsvurdering.html#_A22606_62910
 
-Det står ikke i dokumentationen, men `benyttelseKode` er faktisk forældet.
-Fremover skal man bruge `juridiskKategoriKode` og `juridiskUnderkategoriKode` i stedet (jeg har fejlmeldt
-dokumentationen).
+Det står ikke i dokumentationen, men `benyttelseKode` er faktisk forældet. Fremover skal man bruge
+`juridiskKategoriKode` og `juridiskUnderkategoriKode` i stedet (jeg har fejlmeldt dokumentationen).
 
 Kardinalitet: ca. 900.000 ejendomsvurderinger for 2022 pr. 30. april 2026.
 
@@ -273,8 +271,8 @@ Der er flere forskellige nøglefelter, men der dog ikke altid er udfyldt:
 
 Så vidt jeg kan forstå er BFE-nummeret den nøgle, der skal benyttes i fremtiden.
 
-`VURejendomsid` er dog udfyldt for de fleste vurderingsejendomme, `vurderingsejendomID` er også.
-Bemærk dog, at relationen tilbage til `Ejendomsvurdering` går via `VURejendomsid` til dennes `fkVurderingsejendomID`
+`VURejendomsid` er dog udfyldt for de fleste vurderingsejendomme, `vurderingsejendomID` er også. Bemærk dog, at
+relationen tilbage til `Ejendomsvurdering` går via `VURejendomsid` til dennes `fkVurderingsejendomID`
 og ikke via `vurderingsejendomID` som navngivningen lægger op til.
 
 Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
@@ -283,12 +281,10 @@ Kardinalitet: ca. 2,4 millioner styk pr. april 2026.
 
 Dette er en relation mellem ejendomsvurderinger og bestemte faste ejendomme (BFE) i BBR.
 
-Der er typisk under 100 vurderinger pr. ejendom, middelværdien er omkring 20 vurderinger
-per BFE-nummer (april 2026).
+Der er typisk under 100 vurderinger pr. ejendom, middelværdien er omkring 20 vurderinger per BFE-nummer (april 2026).
 
-Desværre er vurderingsåret ikke med i relationen til filterbrug (`where`),
-så man bliver nødt til at hente alle data for alle vurderinger fra API'et,
-1000 rækker pr. HTTP-kald.
+Desværre er vurderingsåret ikke med i relationen til filterbrug (`where`), så man bliver nødt til at hente alle data for
+alle vurderinger fra API'et, 1000 rækker pr. HTTP-kald.
 
 - `fkEjendomsvurderingID`
 
@@ -298,17 +294,16 @@ Kardinalitet: ca. 50 millioner styk pr. april 2026.
 
 List med specifikationer til grundværdier for ejendomsvurdering.
 
-GraphQL-APIet er også her ganske sjovt,`VUR_GrundvaerdispecifikationFilterInput` lader til udelukkende
-at være møntet på klientopslag vedrørende en vurdering ad gangen.
+GraphQL-APIet er også her ganske sjovt,`VUR_GrundvaerdispecifikationFilterInput` lader til udelukkende at være møntet på
+klientopslag vedrørende en vurdering ad gangen.
 
 Hvis det er designformålet, ville det være mere oplagt at udstille specifikationerne som en liste direkte på
 Ejendomsvurdering snarere end tvinge klienten til ekstra kald for en typisk meget lille datamængde.
 
-Skal man hente alle data skal man således lave et HTTP-kald pr. ejendomsvurdering, eller hente det hele
-i sider på maks. 1000 elementer pr. kald.
+Skal man hente alle data skal man således lave et HTTP-kald pr. ejendomsvurdering, eller hente det hele i sider på maks.
+1000 elementer pr. kald.
 
-Der er over 30 millioner datapunkter, og kald tager typisk mellem 0,5 til 2 sekunder, så her skal
-man være tålmodig.
+Der er over 30 millioner datapunkter, og kald tager typisk mellem 0,5 til 2 sekunder, så her skal man være tålmodig.
 
 ### BBR
 
@@ -316,11 +311,11 @@ man være tålmodig.
 
 #### Bygning
 
-Der er er mange statuskoder på "Livscyklus" kodelisten (se nedenfor), det lader til
-at den relevante til vort brug for `Bygning` er `6 - Opført` og ikke `7 - Gældende` som ellers.
+Der er er mange statuskoder på "Livscyklus" kodelisten (se nedenfor), det lader til at den relevante til vort brug for
+`Bygning` er `6 - Opført` og ikke `7 - Gældende` som ellers.
 
-BBR indeholder mange flere bygninger, end folks hjem, de er tildelt anvendelseskoder, `byg021BygningensAnvendelse`.
-Se kodelisten her: https://teknik.bbr.dk/kodelister/0/1/0/BygAnvendelse
+BBR indeholder mange flere bygninger, end folks hjem, de er tildelt anvendelseskoder, `byg021BygningensAnvendelse`. Se
+kodelisten her: https://teknik.bbr.dk/kodelister/0/1/0/BygAnvendelse
 
 #### Ejendomsrelation
 
@@ -349,10 +344,9 @@ Se kodelisten https://teknik.bbr.dk/kodelister/0/1/0/Ejendomstype
 
 ##### Livscyklus
 
-Denne liste lader til at sammenblande livsyklus tilstande for flere forskellige typer data.
-Når man se på data for f.eks. `Bygning` er der bygninger med registreringer med status 6 Opført, men ikke med 7
-Gældende.
-Her ville jeg normalt sige, at der ikke er skat på kodelister, så lad os nu bare definere en for hver anvendelse,  
+Denne liste lader til at sammenblande livsyklus tilstande for flere forskellige typer data. Når man se på data for
+f.eks. `Bygning` er der bygninger med registreringer med status 6 Opført, men ikke med 7 Gældende. Her ville jeg normalt
+sige, at der ikke er skat på kodelister, så lad os nu bare definere en for hver anvendelse,  
 så klientapplikationerne ikke skal gætte på hvordan semantikken for de samme værdier adskiller sig på tværs af entiteter
 eller forlade sig på kommentarer i dokumentationen. Så er det bedre med en eksplicit kobling der kan fungere som
 kontrakt.
@@ -373,15 +367,15 @@ For enkelthedens skyld nøjes vi således med at læse *Samlet Fast Ejendom* og 
 
 #### Ejerlejlighed
 
-Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for
-det samme element i kodelisten (7 - Gældende).
+Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for det samme element i
+kodelisten (7 - Gældende).
 
 #### Samlet fast ejendom (SFE)
 
 Entiteten har BFE-nummer som alternativ nøgle, så den er nem at navigere til.
 
-Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for
-det samme (7 - Gældende). Igen en uortodoks brug af kodelisten.
+Her er `status` en `String` (f.eks. `Gældende`), andre steder i API'et bruges statuskoden `7` for det samme (7 -
+Gældende). Igen en uortodoks brug af kodelisten.
 
 Man kan navigere til denne fra Ejerlejlighed, den har `geometri` som er en multi-polygon.
 
