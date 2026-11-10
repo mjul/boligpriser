@@ -219,6 +219,30 @@ order by y, m;
 | 2026 |     8 |             0 | 969519 |
 | 2026 |     9 |             0 | 969519 |
 
+Ovenstående er frem til oktober 2026.
+
+Pudsigt nok kom der i november 2026 flere vurderinger til, også med ajourføringsdatoer flere måneder 
+bagud i tid, hvilket kunne indikere at der er noget galt med bitemporaliteten eller at data ikke
+udgives løbende:
+
+|   År | Måned |Antal udgivet |  Total | |
+|-----:|------:|--------------:|-------:|------|
+| 2025 |    10 |        299504 | 299504 ||
+| 2025 |    11 |         97227 | 396731 ||
+| 2025 |    12 |        211102 | 607833 ||
+| 2026 |     1 |        287963 | 895796 ||
+| 2026 |     2 |             1952 | 897748 |ny|
+| 2026 |     3 |             0 | 897748 ||
+| 2026 |     4 |             0 | 897748 ||
+| 2026 |     5 |             109025 | 1006773 |ny |
+| 2026 |     6 |         133005 | 1139778 |ændret|
+| 2026 |     7 |             0 | 1139778 ||
+| 2026 |     8 |             40888 | 1180666 |ny|
+| 2026 |     9 |            0 | 1180666 ||
+| 2026 |     10 |         97397 | 1278063 |ny|
+
+_(Opdateret 10. november 2026)_
+
 2024-vurderingerne er der slet ikke.
 
 #### Kodelisterne er ikke på første normalform
