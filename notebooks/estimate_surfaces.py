@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.2"
+__generated_with = "0.25.2"
 app = marimo.App(width="medium")
 
 
@@ -388,7 +388,7 @@ def _(mo):
 
 @app.cell
 def _(lb, p2d_layer, p3d_layer, sp_layer):
-    m = lb.Map([sp_layer, p3d_layer, p2d_layer], basemap=lb.basemap. MaplibreBasemap(style=lb.basemap.CartoBasemap.Positron))
+    m = lb.Map([sp_layer, p3d_layer, p2d_layer], basemap=lb.basemap. MaplibreBasemap(style=lb.basemap.CartoStyle.Positron))
     return (m,)
 
 
@@ -420,7 +420,7 @@ def _(m):
 
 
 @app.cell
-def _(m):
+def _():
     #m.to_html(filename="images/odense-grundværdi-pr-kvm-2022.html", title="Grundvaerdi pr. kvm 2022")
     return
 

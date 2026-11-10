@@ -310,7 +310,7 @@ requires-dist = [
     { name = "geopandas", specifier = ">=1.1.3" },
     { name = "gql", extras = ["all"], specifier = ">=4.0.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "lonboard", specifier = ">=0.15.0" },
+    { name = "lonboard", specifier = "==0.17.0" },
     { name = "marimo", extras = ["recommended"], specifier = "==0.25.2" },
     { name = "matplotlib", specifier = ">=3.10.9" },
     { name = "palettable", specifier = ">=3.3.3" },
@@ -1161,7 +1161,7 @@ wheels = [
 
 [[package]]
 name = "lonboard"
-version = "0.16.0"
+version = "0.17.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anywidget" },
@@ -1175,9 +1175,9 @@ dependencies = [
     { name = "traitlets" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/25/82e12623ecd3bfd37bda0f0cce141be27a89bf3448774add9f37ee1d2b8a/lonboard-0.16.0.tar.gz", hash = "sha256:112f1a17648c82d58fb1dc3f0b58ce977a3e810de23094849432652858948460", size = 1107879, upload-time = "2026-04-02T16:33:40.908Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/35/13928687206b2764de194b0f6e46c2e24db4078f42a542ee55d09eac8b1f/lonboard-0.17.0.tar.gz", hash = "sha256:8308275877e657f01d851e3586e3569c25cde3b62f85c9aea74144f9c46e5289", size = 1371752, upload-time = "2026-10-01T23:32:13.717Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/0e/b763d0a97c07e210ee30dd2cb335a7c0eb0cf0c9da3f5089b898bbdee290/lonboard-0.16.0-py3-none-any.whl", hash = "sha256:d720767d15b0fe31736b3ab190b0a89bc06d1dfac53b0a2763cf72a66a40dc05", size = 1160122, upload-time = "2026-04-02T16:33:39.398Z" },
+    { url = "https://files.pythonhosted.org/packages/10/d2/e2e78b4b3d578256c533584ea721813b8ffe225cf3abf2e349a3a19c3f4a/lonboard-0.17.0-py3-none-any.whl", hash = "sha256:d3442d40e2de44654597fc304301aab4069a9ebba9895b5434455f556e57238d", size = 1424623, upload-time = "2026-10-01T23:32:11.662Z" },
 ]
 
 [[package]]
